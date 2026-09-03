@@ -1,0 +1,42 @@
+const { app, core } = require("photoshop");
+
+// 运行前只需要把这两个名称改成 Photoshop“动作”面板中的实际名称。
+const ACTION_SET_NAME = "SAM 3.1 验收";
+const ACTION_NAME = "pants-baseline";
+
+if (app.documents.length === 0) {
+  throw new Error("SAM31_ACTION_TEST_NO_DOCUMENT: 请先打开一张 RGB 8 位测试图。\n");
+}
+
+const actionSet = app.actionTree.find((candidate) => candidate.name === ACTION_SET_NAME);
+if (!actionSet) {
+  throw new Error(`SAM31_ACTION_TEST_SET_NOT_FOUND: ${ACTION_SET_NAME}`);
+}
+
+const recordedAction = actionSet.actions.find((candidate) => candidate.name === ACTION_NAME);
+if (!recordedAction) {
+  throw new Error(`SAM31_ACTION_TEST_ACTION_NOT_FOUND: ${ACTION_SET_NAME} / ${ACTION_NAME}`);
+}
+
+await core.executeAsModal(
+  async () => recordedAction.play(),
+  { commandName: `SAM 3.1 动作验收 · ${ACTION_NAME}` }
+);
+
+const bounds = app.activeDocument.selection.bounds;
+if (!bounds) {
+  throw new Error("SAM31_ACTION_TEST_EMPTY_SELECTION: 动作完成后没有选区。\n");
+}
+
+console.log(JSON.stringify({
+  result: "PASS",
+  actionSet: ACTION_SET_NAME,
+  action: ACTION_NAME,
+  document: app.activeDocument.name,
+  selectionBounds: {
+    left: bounds.left,
+    top: bounds.top,
+    right: bounds.right,
+    bottom: bounds.bottom
+  }
+}));

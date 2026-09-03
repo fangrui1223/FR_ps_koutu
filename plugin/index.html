@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>SAM 3.1 文本选区</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main>
+      <h1>SAM 3.1 文本选区</h1>
+      <p class="hint">界面为中文，提示词仅支持英文。逗号分隔候选，最多 5 个。</p>
+
+      <label for="prompt">提示词</label>
+      <sp-textfield id="prompt" value="pants" placeholder="black leather jacket, pants"></sp-textfield>
+
+      <div class="threshold-row">
+        <label for="threshold">最低置信度</label>
+        <output id="thresholdValue">0.50</output>
+      </div>
+      <sp-slider id="threshold" min="0.05" max="0.95" step="0.01" value="0.50"></sp-slider>
+
+      <sp-button id="run" variant="cta">生成选区</sp-button>
+      <sp-button id="record">执行并录入动作</sp-button>
+      <sp-button id="cancel" disabled>取消当前任务</sp-button>
+
+      <div class="separator"></div>
+      <p id="status" role="status">就绪。首次执行会按需启动本地模型；连续任务复用，空闲后退出。</p>
+      <details>
+        <summary>当前规则</summary>
+        <ul>
+          <li>只读取一个活动图层，要求 RGB 8 位。</li>
+          <li>原选区作为严格搜索范围。</li>
+          <li>只返回全局置信度最高的一个对象。</li>
+          <li>失败不修改原选区。</li>
+        </ul>
+      </details>
+    </main>
+    <script src="index.js"></script>
+  </body>
+</html>

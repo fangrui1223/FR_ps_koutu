@@ -1,0 +1,49 @@
+{
+  "manifestVersion": 5,
+  "id": "com.frps.sam31.action-layer-poc",
+  "name": "SAM 3.1 选区 PoC",
+  "version": "0.1.0",
+  "main": "index.html",
+  "host": {
+    "app": "PS",
+    "minVersion": "25.0.0"
+  },
+  "requiredPermissions": {
+    "localFileSystem": "plugin"
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "sam31PocPanel",
+      "label": {
+        "default": "SAM 3.1 选区 PoC"
+      },
+      "minimumSize": {
+        "width": 280,
+        "height": 360
+      },
+      "preferredDockedSize": {
+        "width": 320,
+        "height": 520
+      },
+      "preferredFloatingSize": {
+        "width": 360,
+        "height": 560
+      }
+    },
+    {
+      "type": "command",
+      "id": "runLayerAlphaPoc",
+      "label": {
+        "default": "运行图层 Alpha 选区 PoC"
+      }
+    },
+    {
+      "type": "command",
+      "id": "runForcedFailurePoc",
+      "label": {
+        "default": "运行强制失败 PoC"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sam31-photoshop-backend"
+version = "0.1.0"
+description = "Offline SAM 3.1 inference service for the Photoshop selection plugin"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+inference = [
+  "torch>=2.7",
+  "torchvision",
+  "numpy>=1.26,<2",
+  "Pillow",
+  "safetensors",
+  "timm>=1.0.17",
+  "ftfy==6.1.1",
+  "regex",
+  "iopath>=0.1.10",
+  "typing_extensions",
+  "huggingface_hub",
+  "setuptools",
+  "einops",
+  "triton-windows==3.3.1.post19; platform_system == 'Windows'",
+  "pycocotools",
+  "psutil"
+]
+
+[tool.setuptools.packages.find]
+include = ["sam31_backend*"]

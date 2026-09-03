@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SAM 3.1 选区 PoC</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <h1>SAM 3.1 选区 PoC</h1>
+      <p class="hint">当前原型用活动图层 Alpha 代替模型掩码，用于验证动作、图层、ROI 和选区写回。</p>
+
+      <label for="prompt">英文提示词</label>
+      <input id="prompt" type="text" value="jacket" spellcheck="false" />
+
+      <label for="threshold">置信度阈值</label>
+      <div class="row">
+        <input id="threshold" type="range" min="0.05" max="0.95" step="0.01" value="0.50" />
+        <output id="thresholdValue">0.50</output>
+      </div>
+
+      <section class="status-section">
+        <h2>状态</h2>
+        <pre id="status">等待操作</pre>
+      </section>
+
+      <div class="buttons">
+        <button id="record" class="accent">执行并录入动作</button>
+        <button id="recordFail" class="danger">录入失败测试步骤</button>
+        <button id="roi">建立中心测试 ROI</button>
+        <button id="run">测试生成选区</button>
+        <button id="fail" class="danger">测试错误传播</button>
+      </div>
+
+      <section>
+        <h2>本次验证</h2>
+        <ul>
+          <li>只读取当前活动图层</li>
+          <li>原选区作为严格 ROI</li>
+          <li>成功后替换选区</li>
+          <li>失败时不修改原选区</li>
+        </ul>
+      </section>
+    </main>
+    <script src="index.js"></script>
+  </body>
+</html>

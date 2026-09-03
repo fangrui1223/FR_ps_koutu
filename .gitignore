@@ -1,0 +1,34 @@
+# Local models and user/test images
+/models/
+/测试文件夹/
+/tests/fixtures/
+
+# Generated runtime, installers, smoke output, and model results
+/installer/stage/
+/installer/dist/
+/work/
+/prototypes/model-poc/results/
+
+# Native/CMake build trees
+/native/build*/
+/prototypes/backend-lifecycle-poc/build/
+
+# Python caches and test caches
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Editor, OS, and transient files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.log
+Thumbs.db
+.DS_Store
+
+# Packaged release artifacts
+*.ccx
+*.msi

@@ -1,0 +1,65 @@
+{
+  "manifestVersion": 6,
+  "id": "com.fr.sam31-selection.dev",
+  "name": "SAM 3.1 文本选区",
+  "version": "0.1.0",
+  "main": "index.html",
+  "icons": [
+    {
+      "width": 23,
+      "height": 23,
+      "path": "icons/plugin-dark.png",
+      "scale": [1, 2],
+      "theme": ["dark", "darkest"]
+    },
+    {
+      "width": 23,
+      "height": 23,
+      "path": "icons/plugin-light.png",
+      "scale": [1, 2],
+      "theme": ["light", "lightest"]
+    }
+  ],
+  "host": {
+    "app": "PS",
+    "minVersion": "25.0.0",
+    "data": {"apiVersion": 2, "loadEvent": "startup"}
+  },
+  "addon": {
+    "name": "sam31-supervisor.uxpaddon"
+  },
+  "requiredPermissions": {
+    "enableAddon": true
+  },
+  "entryPoints": [
+    {
+      "type": "panel",
+      "id": "sam31SelectionPanel",
+      "label": {"default": "SAM 3.1 文本选区"},
+      "icons": [
+        {
+          "width": 23,
+          "height": 23,
+          "path": "icons/plugin-dark.png",
+          "scale": [1, 2],
+          "theme": ["dark", "darkest"]
+        },
+        {
+          "width": 23,
+          "height": 23,
+          "path": "icons/plugin-light.png",
+          "scale": [1, 2],
+          "theme": ["light", "lightest"]
+        }
+      ],
+      "minimumSize": {"width": 280, "height": 320},
+      "preferredDockedSize": {"width": 320, "height": 430},
+      "preferredFloatingSize": {"width": 360, "height": 460}
+    },
+    {
+      "type": "command",
+      "id": "runRecordedDefaults",
+      "label": {"default": "执行 SAM 3.1 默认选区"}
+    }
+  ]
+}

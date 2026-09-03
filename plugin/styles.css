@@ -1,0 +1,56 @@
+:root {
+  --pad: 14px;
+}
+
+body {
+  margin: 0;
+  color: var(--uxp-host-text-color);
+  background: var(--uxp-host-background-color);
+  font-family: Arial, "Microsoft YaHei UI", sans-serif;
+  font-size: 12px;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--pad);
+}
+
+h1 {
+  margin: 0 0 2px;
+  font-size: 18px;
+}
+
+.hint,
+#status {
+  margin: 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.hint {
+  opacity: 0.75;
+}
+
+.threshold-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.separator {
+  height: 1px;
+  margin: 4px 0;
+  background: rgba(128, 128, 128, 0.35);
+}
+
+details ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  line-height: 1.55;
+}
+
+.error {
+  color: #ff9b9b;
+}
