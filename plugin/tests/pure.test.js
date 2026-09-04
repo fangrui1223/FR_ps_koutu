@@ -45,12 +45,13 @@ const request = buildInferRequest({
   threshold: info.threshold,
   documentWidth: 100,
   documentHeight: 200,
-  sourcePath: "C:\\images\\a.psd",
+  documentResolution: 300,
   inputBounds: { left: 10, top: 20, right: 90, bottom: 180 },
   roiBounds: { left: 25, top: 50, right: 75, bottom: 150 }
 });
 assert.strictEqual(request.input.width, 80);
 assert.strictEqual(request.input.height, 160);
+assert.strictEqual(request.document.resolution, 300);
 assert.strictEqual(request.roi.width, 50);
 assert.strictEqual(request.output.file, "request-0001/mask.gray8");
 

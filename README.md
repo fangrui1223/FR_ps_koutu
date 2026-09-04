@@ -1,31 +1,60 @@
-# SAM 3.1 Photoshop Selection Plugin
+# FR SAM 文本选区 / FR SAM Text Selection
 
-Windows 10/11、Photoshop 2025–2026 本地离线 SAM 3.1 英文文本提示选区插件。
+v0.9.0 是面向 Windows 10/11、Photoshop 2025/2026 的预发布版。插件在中文面板中接收英文文本提示词，只读取当前活动图层，通过本机 SAM 3.1 生成灰度 Photoshop 选区。安装完成后推理完全离线，不要求安装或启动 ComfyUI。
 
-当前状态：四项可行性原型、Photoshop 2026 Hybrid 真机闭环和阶段 3 核心图像事务已经完成。正式 UXP 动作已通过动作面板、原生 Batch 和 `.psjs`；原生“图像处理器”使用随安装器部署的 ExtendScript 兼容动作桥，3 张 7640×5096/5100 真实图片已连续通过。独立运行时候选已从开发 Python 的 35 个发行版依赖闭包生成，不包含 ComfyUI 根目录或 custom nodes；完整模型预检、配置型 Release Addon 到独立后端的 Mock 传输、以及不借助 ComfyUI 的正式冷/热推理均已通过。Adobe UXP Developer Tools 已成功生成内部测试 `.ccx`。
+## 主要能力
 
-当前仍不是公开发布成品：CCX 使用临时 `.dev` ID，Windows 安装器只有已完成的 Inno Setup 工程、尚未编译/签名；候选运行时还含 nightly PyTorch，必须换成审计并锁定的稳定版本。PS 2025、完整 A–F 夹具、图层蒙版/样式/软 ROI/96 MP UXP、4000×6000 端到端 P95、16 GB 实机和 1000 张长跑也仍是发布 Gate。无对象 Batch 会准确在失败文件报错，但 Photoshop 2026 会显示两级“继续/停止”宿主对话框，所以 V1 不保证错误后的静默无人值守退出。完整计划见 [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md)，安装/发布说明见 [`docs/INSTALLATION_AND_RELEASE.md`](docs/INSTALLATION_AND_RELEASE.md)，批处理验收见 [`docs/PHOTOSHOP_BATCH_COMPATIBILITY.md`](docs/PHOTOSHOP_BATCH_COMPATIBILITY.md)。
+- 普通像素图层和智能对象；忽略下方图层的混合结果。
+- 英文短语或逗号分隔候选词，最多 5 个；返回全局置信度最高的一个对象。
+- 原选区作为搜索范围，输出严格裁切在原选区内。
+- 输出 0–255 灰度软选区；毛发、薄纱和半透明效果受 SAM 3.1 自身能力限制。
+- 面板交互入口与可录制动作入口；动作保存提示词和置信度，适合 Photoshop Batch、脚本和图像处理器。
+- 后端按需启动、批次内复用、空闲退出；技术故障自动重启并重试一次。
+- 无对象或输入错误会保留原选区并抛错，让 Photoshop 停止或询问如何继续。
 
-## 已完成原型
+## 安装
 
-- `prototypes/action-layer-poc/`：Photoshop Action 参数录入/重放、错误传播、活动图层、智能对象与严格 ROI。
-- `prototypes/backend-lifecycle-poc/`：回环鉴权、隐藏启动、崩溃后一次重启重试、空闲退出。
-- `prototypes/model-poc/`：固定权重结构、英文多候选全局 Top-1、大图显存与性能策略。
+发布页提供两个文件，建议按顺序安装：
 
-## 已完成产品骨架
+1. FR-SAM-Text-Selection-Backend-0.9.0-Windows-x64.exe
+2. com.fangrui.sam-selection_PS.ccx
 
-- `docs/PROTOCOL_V1.md`：本机回环协议、鉴权、会话文件、错误、幂等和资源限制。
-- `plugin/`：中文 UXP 面板、双入口 Action 参数、活动层/ROI 捕获、会话 I/O 与选区提交。
-- `backend/`：独立离线服务、路径隔离、生命周期、正式 Meta SAM 3.1 适配器及单元测试。
-- `native/`：Adobe Hybrid SDK v6.5.0 Addon；异步推理、按需启动、会话鉴权、健康检查、一次重启重试、取消和空闲退出。
-- `legacy/`：仅供 Photoshop 原生“图像处理器”调用的可录制 ExtendScript 桥接；提示词和阈值保存在动作步骤中，后端仍按需启动并空闲退出。
+Windows 后端安装器要求 NVIDIA 显卡及至少 16 GB 显存。它可以引用已有的 sam3.1_multiplex_fp16.safetensors，也可以联网下载并校验固定模型；运行时、依赖和模型准备完成后，日常使用不联网。CCX 采用 Adobe UXP Developer Tool 的标准包格式，通过 Creative Cloud Desktop 安装。
 
-RTX 5090 正式后端热请求实测：4000×6000 约 0.573 秒，8000×12000 约 1.791 秒。Photoshop 2026 的 1024×1536 正式 Hybrid 热调用在 3.111 秒观察窗口内完成；最终 8 秒目标仍必须按 4000×6000 端到端 P95 验收。
+详细步骤见 [安装与发布说明](docs/INSTALLATION_AND_RELEASE.md)，动作和批处理方法见 [Photoshop 批处理兼容性](docs/PHOTOSHOP_BATCH_COMPATIBILITY.md)，完整证据见 [v0.9.0 测试报告](docs/TEST_REPORT_v0.9.0.md)。
 
-面板执行采用短捕获模态、模态外推理和短提交模态；取消由后端中断与前端本地守卫共同保证，即使后端迟到返回成功也不会覆盖原选区。
+## 使用
 
-当前 Photoshop 2026 中仍保留开发桥用于回归；发布暂存中的桥已关闭开发路径回退，只读取 `%PROGRAMDATA%\FR\SAM31 Photoshop Selection\runtime-v1.ini`。正式 Release Addon 同样为配置型构建，二者都不包含开发机 Python、ComfyUI 或源码绝对路径。最终用户不需要安装或启动 ComfyUI。
+在 Photoshop 打开“增效工具 > FR SAM 文本选区”。面板可以拖到右侧面板图标栏固定，Photoshop 会随工作区记住位置。
 
-当前内部 CCX 候选：`installer/dist/ccx/com.fr.sam31-selection.dev_PS.ccx`（86,577 字节，SHA-256 `A76030204A2F85608BF8C1D4F37A7657A351E2DC7CC38A411E526F32C5F70B0B`）。它只包含 UXP/Hybrid 插件，不包含约 6.423 GiB 的独立后端负载；两者按已确认的“双安装包”方式分发。
+- 单张处理：输入英文提示词，调整最低置信度，点击“生成选区”。
+- 录制动作：开始录制 Photoshop 动作后，点击“执行并录入动作”。以后重放使用动作中保存的提示词和阈值。
+- 更换批次提示词：修改并重新录制该动作步骤。
+- 图像处理器：录制安装器提供的“FR SAM Text Selection Image Processor”脚本步骤；不要在图像处理器中调用普通 UXP 动作步骤。
 
-模型权重位于 `models/`，不应提交到源码仓库或未经许可直接再分发。`model-poc` 中调用 ComfyUI 的脚本仅作为本机参考 oracle，不得复制进正式闭源后端。
+## 已验证
+
+- Photoshop 2026 27.10：面板、正式 SAM 推理、动作录入/重放、Batch、PSJS、普通像素层、智能对象、严格 ROI、取消和灰度选区写回。
+- 独立稳定运行时：PyTorch 2.10.0+cu128、torchvision 0.25.0+cu128、CUDA 12.8；没有 ComfyUI 路径依赖。
+- RTX 5090、7647×5100 实图：单图冷启动约 8.15 秒，热请求约 0.88 秒。
+- 最终安装版后端连续处理测试文件夹 20 张真实大图：20/20 成功，总计 65.17 秒；首张含冷启动约 9.99 秒，其余约 1.68–1.97 秒。
+- 1000 次连续后端请求：1000/1000 成功。
+- 原生 Release 构建测试：2/2 通过；Python 后端测试：10/10；UXP 测试套件：9/9。
+
+这是未签名的免费预发布版。Photoshop 2025、Windows 10 和恰好 16 GB 显卡没有在当前开发机上做同配置实机验收；兼容声明来自 API/清单下限与静态测试，问题请在 GitHub Issues 报告。
+
+## 隐私与许可
+
+所有推理均在本机完成。诊断日志只记录错误类别、阶段、版本和耗时，不记录提示词、图像、源文件路径或会话令牌；日志最多保留 3 个轮转文件。
+
+本项目代码使用 [MIT License](LICENSE)。Meta SAM 3.1、模型权重及第三方 Python 依赖适用各自许可证，见 [第三方通知](THIRD_PARTY_NOTICES.md)。模型权重不提交到源码仓库。
+
+---
+
+## English
+
+FR SAM Text Selection is a Windows-only Photoshop 2025/2026 hybrid UXP plugin. It converts English text prompts into a soft Photoshop selection using a local SAM 3.1 backend. Inference is fully offline after setup and does not require ComfyUI.
+
+Install the Windows backend first, then the CCX. The backend requires an NVIDIA GPU with at least 16 GB VRAM and either references an existing supported checkpoint or downloads and verifies the fixed checkpoint. The plugin reads only the active layer, supports pixel layers and Smart Objects, treats an existing selection as a strict ROI, and returns the single highest-confidence object across up to five comma-separated English prompts.
+
+This is a free, unsigned pre-release. Photoshop 2026, an RTX 5090, a 20/20 real-image run through the final installed backend, action replay, the Image Processor bridge, and a 1000-request backend stress run have been exercised. Photoshop 2025, Windows 10, and an exact 16 GB GPU were not available for same-machine validation.

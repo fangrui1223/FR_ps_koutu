@@ -84,6 +84,17 @@ int wmain() {
             throw std::runtime_error("Valid runtime configuration was resolved incorrectly");
         }
 
+        const std::string v2Prefix =
+            "schemaVersion=2\ninstallRoot=" + utf8(fixture.root) +
+            "\npython=runtime\\python.exe\nbackend=backend\nmodel=" +
+            utf8(fixture.root / "models" / "model.safetensors") + "\n";
+        const auto validV2 = fixture.write(
+            v2Prefix + "officialSam3=vendor\\sam3\n", "runtime-v2.ini");
+        const auto configV2 = sam31::supervisor::loadRuntimeConfigFile(validV2);
+        if (configV2.modelCheckpoint != fixture.root / "models" / "model.safetensors") {
+            throw std::runtime_error("Version 2 external model path was resolved incorrectly");
+        }
+
         const auto traversal = fixture.write(
             prefix + "officialSam3=..\\outside\n", "traversal.ini");
         expectFailure([&] { sam31::supervisor::loadRuntimeConfigFile(traversal); }, "path traversal");
@@ -96,7 +107,7 @@ int wmain() {
             prefix + "officialSam3=vendor\\sam3\npython=runtime\\python.exe\n", "duplicate.ini");
         expectFailure([&] { sam31::supervisor::loadRuntimeConfigFile(duplicate); }, "duplicate field");
 
-        std::cout << "{\"status\":\"PASS\",\"runtimeConfig\":\"v1\"}\n";
+        std::cout << "{\"status\":\"PASS\",\"runtimeConfig\":\"v1+v2\"}\n";
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "runtime config tests failed: " << error.what() << '\n';

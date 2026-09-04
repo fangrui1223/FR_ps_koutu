@@ -13,8 +13,8 @@ struct RuntimeConfig {
     std::filesystem::path source;
 };
 
-// Release builds load a machine-wide, administrator-owned configuration from
-// %PROGRAMDATA%\FR\SAM31 Photoshop Selection\runtime-v1.ini. Tests and build
+// Release builds load a current-user configuration from
+// %LOCALAPPDATA%\FR\FR SAM Text Selection\runtime-v2.ini. Tests and build
 // tooling may override that location with SAM31_RUNTIME_CONFIG.
 RuntimeConfig loadRuntimeConfig();
 RuntimeConfig loadRuntimeConfigFile(const std::filesystem::path& path);

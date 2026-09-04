@@ -1,4 +1,5 @@
 #include "supervisor.h"
+#include "build_config.h"
 
 #include <windows.h>
 
@@ -60,6 +61,7 @@ int wmain() {
         writeInput(session.root / "smoke-0001" / "input.rgba8");
         const std::string response = sam31::supervisor::Engine::instance().infer(
             session.root.string(), requestJson());
+#if SAM31_BACKEND_MOCK_ALPHA
         if (response.find("\"status\":\"ok\"") == std::string::npos) {
             throw std::runtime_error("Unexpected backend response: " + response);
         }
@@ -68,8 +70,20 @@ int wmain() {
         std::array<unsigned char, 4> actual{};
         maskStream.read(reinterpret_cast<char*>(actual.data()), static_cast<std::streamsize>(actual.size()));
         if (!maskStream || actual != expected) throw std::runtime_error("Mask bytes do not match alpha proxy");
+#else
+        if (response.find("\"code\":\"NO_OBJECT\"") == std::string::npos ||
+            response.find("\"retryable\":false") == std::string::npos) {
+            throw std::runtime_error("Unexpected formal backend response: " + response);
+        }
+#endif
         sam31::supervisor::Engine::instance().shutdown();
-        std::cout << "{\"status\":\"PASS\",\"transport\":\"uxp-supervisor-core\",\"maskBytes\":4}\n";
+        std::cout << "{\"status\":\"PASS\",\"transport\":\"uxp-supervisor-core\",\"mode\":\""
+#if SAM31_BACKEND_MOCK_ALPHA
+                  << "mock"
+#else
+                  << "formal"
+#endif
+                  << "\"}\n";
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "supervisor smoke failed: " << error.what() << '\n';

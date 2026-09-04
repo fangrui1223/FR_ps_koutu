@@ -37,6 +37,10 @@ function buildInferRequest(options) {
   const inputBounds = normalizeBounds(options.inputBounds);
   const document = normalizeDocumentSize(options.documentWidth, options.documentHeight);
   assertPlaneInsideDocument(inputBounds, document, "活动图层边界");
+  const resolution = Number(options.documentResolution || 72);
+  if (!Number.isFinite(resolution) || resolution < 1 || resolution > 1200) {
+    throw new Error("文档分辨率无效。");
+  }
   const inputEncoding = options.inputEncoding || "rgba8";
   const inputFile = options.inputFile || "input.rgba8";
   const outputEncoding = options.outputEncoding || "gray8";
@@ -49,7 +53,7 @@ function buildInferRequest(options) {
     modelId: MODEL_ID,
     prompts,
     threshold: normalizeThreshold(options.threshold),
-    document: { width: document.width, height: document.height },
+    document: { width: document.width, height: document.height, resolution },
     input: {
       file: `${options.requestId}/${inputFile}`,
       encoding: inputEncoding,
@@ -63,7 +67,6 @@ function buildInferRequest(options) {
       encoding: outputEncoding
     }
   };
-  if (options.sourcePath) request.document.sourcePath = String(options.sourcePath);
   if (options.roiBounds) {
     const roiBounds = normalizeBounds(options.roiBounds);
     assertPlaneInsideDocument(roiBounds, document, "搜索选区边界");

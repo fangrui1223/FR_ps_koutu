@@ -138,5 +138,5 @@ def _write_mask(request: InferRequest, data: bytes | bytearray | memoryview) -> 
     rgba = Image.new("RGBA", alpha.size, (255, 255, 255, 0))
     rgba.putalpha(alpha)
     encoded = BytesIO()
-    rgba.save(encoded, format="PNG", compress_level=1)
+    rgba.save(encoded, format="PNG", compress_level=1, dpi=(request.document_resolution,) * 2)
     _atomic_write(request.output_path, encoded.getbuffer())

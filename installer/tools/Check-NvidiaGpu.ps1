@@ -9,13 +9,13 @@ $candidates = @(
 ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -Unique
 
 if (-not $candidates) {
-    Write-Error '未检测到 NVIDIA 驱动或 nvidia-smi。此插件要求 NVIDIA GPU 和正常安装的驱动。'
+    Write-Error 'NVIDIA driver or nvidia-smi was not detected.'
     exit 10
 }
 
 $values = & $candidates[0] '--query-gpu=memory.total' '--format=csv,noheader,nounits' 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Error ('无法查询 NVIDIA GPU：' + ($values -join ' '))
+    Write-Error ('Could not query the NVIDIA GPU: ' + ($values -join ' '))
     exit 11
 }
 $memory = @($values | ForEach-Object {
@@ -23,12 +23,12 @@ $memory = @($values | ForEach-Object {
     if ([int]::TryParse(($_ -replace '[^0-9]', ''), [ref]$parsed)) { $parsed }
 })
 if (-not $memory) {
-    Write-Error '无法读取 NVIDIA GPU 显存容量。'
+    Write-Error 'Could not read NVIDIA GPU memory capacity.'
     exit 12
 }
 $maximumMiB = ($memory | Measure-Object -Maximum).Maximum
 if ($maximumMiB -lt 15360) {
-    Write-Error ("最大 NVIDIA GPU 仅报告 $maximumMiB MiB；此插件要求 16 GB 级显卡。")
+    Write-Error ("The largest NVIDIA GPU reports only $maximumMiB MiB; 16 GB class is required.")
     exit 13
 }
 Write-Output "NVIDIA GPU prerequisite passed: $maximumMiB MiB"

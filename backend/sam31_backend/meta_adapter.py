@@ -290,9 +290,12 @@ class MetaSam31Adapter:
                         best = {
                             "prompt": prompt,
                             "score": score,
-                            "mask": output["masks"][index]
+                            # Meta's processor exposes the post-sigmoid mask in
+                            # masks_logits. Keep that continuous plane so
+                            # Photoshop receives a genuine grayscale selection.
+                            "mask": output["masks_logits"][index]
                             .detach()
-                            .to(device="cpu", dtype=torch.uint8),
+                            .to(device="cpu", dtype=torch.float32),
                         }
             torch.cuda.synchronize()
         except torch.cuda.OutOfMemoryError as error:
@@ -320,8 +323,8 @@ class MetaSam31Adapter:
                 retryable=False,
             )
 
-        low_mask = np.squeeze(best["mask"].numpy()) * 255
-        if low_mask.ndim != 2:
+        low_probability = np.squeeze(best["mask"].numpy())
+        if low_probability.ndim != 2:
             raise ServiceError(
                 "INFERENCE_FAILED",
                 "SAM 3.1 returned an unexpected mask shape.",
@@ -329,9 +332,10 @@ class MetaSam31Adapter:
                 retryable=True,
             )
         x1, y1, x2, y2 = crop
+        low_mask = np.rint(np.clip(low_probability, 0.0, 1.0) * 255.0).astype(np.uint8)
         crop_mask = np.asarray(
             Image.fromarray(low_mask, mode="L").resize(
-                (x2 - x1, y2 - y1), Image.Resampling.NEAREST
+                (x2 - x1, y2 - y1), Image.Resampling.BILINEAR
             ),
             dtype=np.uint8,
         )

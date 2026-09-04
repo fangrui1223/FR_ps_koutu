@@ -1,10 +1,10 @@
 /*
 <javascriptresource>
-<name>SAM 3.1 图像处理器桥接</name>
-<category>SAM 3.1</category>
-<eventid>sam31ImageProcessorBridge</eventid>
+<name>FR SAM 文本选区（图像处理器）</name>
+<category>FR SAM 文本选区</category>
+<eventid>frSamImageProcessorBridge</eventid>
 <terminology><![CDATA[<< /Version 1 /Events <<
-/sam31ImageProcessorBridge [(SAM 3.1 Image Processor Bridge) <<
+/frSamImageProcessorBridge [(FR SAM Image Processor Bridge) <<
 /sam31Prompt [(Prompt) /string]
 /sam31Threshold [(Threshold) /double]
 >>]
@@ -18,19 +18,14 @@
     var KEY_PROMPT = stringIDToTypeID("sam31Prompt");
     var KEY_THRESHOLD = stringIDToTypeID("sam31Threshold");
     var SESSION_ROOT = new Folder(Folder.temp.fsName + "/sam31-selection-legacy");
-    // Prepare-Release.ps1 changes this marker to false in the installer payload.
-    var ALLOW_DEV_FALLBACK = true; // @sam31-release-dev-fallback
+    // Formal source uses only the current-user runtime configuration.
+    var ALLOW_DEV_FALLBACK = false; // @sam31-release-dev-fallback
     // @sam31-dev-runtime-begin
-    var DEV_RUNTIME = {
-        python: "C:/FR_comfyui/python/python.exe",
-        backend: "D:/FR_AI/FR_ps_koutu/backend",
-        model: "D:/FR_AI/FR_ps_koutu/models/sam3.1_multiplex_fp16.safetensors",
-        officialSam3: "D:/FR_AI/FR_ps_koutu/work/sam3-official"
-    };
+    var DEV_RUNTIME = null;
     // @sam31-dev-runtime-end
 
     function fail(message) {
-        throw new Error("SAM 3.1: " + message);
+        throw new Error("FR SAM 文本选区：" + message);
     }
 
     function actionParameters() {
@@ -41,9 +36,9 @@
             promptValue = playback.getString(KEY_PROMPT);
             thresholdValue = playback.hasKey(KEY_THRESHOLD) ? playback.getDouble(KEY_THRESHOLD) : 0.5;
         } else {
-            promptValue = prompt("请输入英文提示词（多个候选用逗号分隔）：", "pants", "SAM 3.1 图像处理器动作");
+            promptValue = prompt("请输入英文提示词（多个候选用逗号分隔）：", "pants", "FR SAM 文本选区动作");
             if (promptValue === null) fail("已取消录制。");
-            var thresholdText = prompt("请输入最低置信度（0.05–0.95）：", "0.50", "SAM 3.1 图像处理器动作");
+            var thresholdText = prompt("请输入最低置信度（0.05–0.95）：", "0.50", "FR SAM 文本选区动作");
             if (thresholdText === null) fail("已取消录制。");
             thresholdValue = Number(thresholdText);
             var descriptor = new ActionDescriptor();
@@ -156,13 +151,23 @@
         return entry.fsName;
     }
 
+    function absoluteInstalledFile(value, label) {
+        value = safeInstalledPath(value, label).replace(/\//g, "\\");
+        if (!/^[A-Za-z]:\\/.test(value)) {
+            fail("运行时配置中的 " + label + " 必须是绝对路径。");
+        }
+        var entry = new File(value);
+        if (!entry.exists) fail("运行时配置中的 " + label + " 不存在。");
+        return entry.fsName;
+    }
+
     function loadRuntimeConfig() {
-        var programData = $.getenv("PROGRAMDATA");
-        var configFile = programData ?
-            new File(programData + "/FR/SAM31 Photoshop Selection/runtime-v1.ini") : null;
+        var localAppData = $.getenv("LOCALAPPDATA");
+        var configFile = localAppData ?
+            new File(localAppData + "/FR/FR SAM Text Selection/runtime-v2.ini") : null;
         if (!configFile || !configFile.exists) {
             if (ALLOW_DEV_FALLBACK) return DEV_RUNTIME;
-            fail("未安装 SAM 3.1 本地运行时，请先运行 Windows 后端安装程序。");
+            fail("未安装 FR SAM 本地运行时，请先运行 Windows 后端安装程序。");
         }
         var content = readText(configFile).replace(/^\uFEFF/, "");
         var lines = content.split(/\r?\n/);
@@ -192,15 +197,17 @@
                 fail("运行时配置缺少字段：" + required + "。");
             }
         }
-        if (values.schemaVersion !== "1") fail("不支持的 SAM 3.1 运行时配置版本。");
+        if (values.schemaVersion !== "1" && values.schemaVersion !== "2") fail("不支持的 FR SAM 运行时配置版本。");
         var rootText = safeInstalledPath(values.installRoot, "installRoot");
         if (!/^[A-Za-z]:[\\\/]/.test(rootText)) fail("installRoot 必须是绝对路径。");
         var root = new Folder(rootText);
-        if (!root.exists) fail("SAM 3.1 安装目录不存在。");
+        if (!root.exists) fail("FR SAM 安装目录不存在。");
         return {
             python: relativeInstalledPath(root.fsName, values.python, "Python", false),
             backend: relativeInstalledPath(root.fsName, values.backend, "backend", true),
-            model: relativeInstalledPath(root.fsName, values.model, "model", false),
+            model: values.schemaVersion === "2" ?
+                absoluteInstalledFile(values.model, "model") :
+                relativeInstalledPath(root.fsName, values.model, "model", false),
             officialSam3: relativeInstalledPath(root.fsName, values.officialSam3, "officialSam3", true)
         };
     }
@@ -209,38 +216,6 @@
         value = String(value);
         if (/[\r\n\"%!^&|<>]/.test(value)) fail("本地命令路径包含不支持的字符。");
         return '"' + value + '"';
-    }
-
-    function saveActiveLayer(doc, file) {
-        var original = app.activeDocument;
-        var exportDoc = null;
-        try {
-            var sourceLayer = doc.activeLayer;
-            exportDoc = app.documents.add(
-                doc.width,
-                doc.height,
-                doc.resolution,
-                "SAM31-input",
-                NewDocumentMode.RGB,
-                DocumentFill.TRANSPARENT,
-                1,
-                BitsPerChannelType.EIGHT
-            );
-            var placeholder = exportDoc.activeLayer;
-            app.activeDocument = doc;
-            var copied = sourceLayer.duplicate(exportDoc, ElementPlacement.PLACEATBEGINNING);
-            app.activeDocument = exportDoc;
-            copied.visible = true;
-            copied.blendMode = BlendMode.NORMAL;
-            try { copied.grouped = false; } catch (ignored) {}
-            placeholder.remove();
-            var options = new PNGSaveOptions();
-            options.interlaced = false;
-            exportDoc.saveAs(file, options, true, Extension.LOWERCASE);
-        } finally {
-            if (exportDoc) exportDoc.close(SaveOptions.DONOTSAVECHANGES);
-            app.activeDocument = original;
-        }
     }
 
     function hasSelection(doc) {
@@ -260,50 +235,92 @@
         return color;
     }
 
-    function saveSelection(doc, file) {
-        if (!hasSelection(doc)) return false;
+    function saveInputPlanes(doc, inputFile, roiFile) {
         var original = app.activeDocument;
-        var roiDoc = null;
+        var exportDoc = null;
+        var hasRoi = hasSelection(doc);
         try {
-            roiDoc = doc.duplicate("SAM31-roi", false);
-            var layers = [];
-            for (var i = 0; i < roiDoc.layers.length; i += 1) layers.push(roiDoc.layers[i]);
-            var maskLayer = roiDoc.artLayers.add();
-            maskLayer.name = "SAM31 temporary ROI";
-            for (var j = 0; j < layers.length; j += 1) layers[j].visible = false;
-            roiDoc.selection.fill(white(), ColorBlendMode.NORMAL, 100, false);
+            exportDoc = doc.duplicate("FR-SAM-export", false);
+            app.activeDocument = exportDoc;
+
+            var sourceLayer = exportDoc.activeLayer;
+            var originalTopLayers = [];
+            for (var i = 0; i < exportDoc.layers.length; i += 1) {
+                originalTopLayers.push(exportDoc.layers[i]);
+            }
+            var exportedLayer = sourceLayer.duplicate(exportDoc, ElementPlacement.PLACEATBEGINNING);
+            for (var j = 0; j < originalTopLayers.length; j += 1) {
+                originalTopLayers[j].visible = false;
+            }
+            exportedLayer.visible = true;
+            exportedLayer.blendMode = BlendMode.NORMAL;
+            try { exportedLayer.grouped = false; } catch (ignored) {}
+
             var options = new PNGSaveOptions();
             options.interlaced = false;
-            roiDoc.saveAs(file, options, true, Extension.LOWERCASE);
-            return true;
+            exportDoc.saveAs(inputFile, options, true, Extension.LOWERCASE);
+
+            if (hasRoi) {
+                exportedLayer.visible = false;
+                var maskLayer = exportDoc.artLayers.add();
+                maskLayer.name = "FR SAM temporary ROI";
+                maskLayer.visible = true;
+                exportDoc.selection.fill(white(), ColorBlendMode.NORMAL, 100, false);
+                exportDoc.saveAs(roiFile, options, true, Extension.LOWERCASE);
+            }
+            return hasRoi;
         } finally {
-            if (roiDoc) roiDoc.close(SaveOptions.DONOTSAVECHANGES);
+            if (exportDoc) exportDoc.close(SaveOptions.DONOTSAVECHANGES);
             app.activeDocument = original;
         }
     }
 
-    function loadTransparencySelection(doc, maskFile) {
-        var maskDoc = null;
+    function placeMaskAsHiddenLayer(doc, maskFile) {
         var selectionLayer = null;
         try {
-            maskDoc = app.open(maskFile);
-            maskDoc.activeLayer.duplicate(doc, ElementPlacement.PLACEATBEGINNING);
-            maskDoc.close(SaveOptions.DONOTSAVECHANGES);
-            maskDoc = null;
             app.activeDocument = doc;
+            var place = new ActionDescriptor();
+            place.putPath(charIDToTypeID("null"), maskFile);
+            place.putEnumerated(
+                charIDToTypeID("FTcs"),
+                charIDToTypeID("QCSt"),
+                charIDToTypeID("Qcsa")
+            );
+            executeAction(charIDToTypeID("Plc "), place, DialogModes.NO);
             selectionLayer = doc.activeLayer;
+            selectionLayer.name = "FR SAM temporary mask";
+            selectionLayer.visible = false;
+
             var setDescriptor = new ActionDescriptor();
             var destination = new ActionReference();
             destination.putProperty(charIDToTypeID("Chnl"), charIDToTypeID("fsel"));
             setDescriptor.putReference(charIDToTypeID("null"), destination);
             var transparency = new ActionReference();
-            transparency.putEnumerated(charIDToTypeID("Chnl"), charIDToTypeID("Chnl"), charIDToTypeID("Trsp"));
+            transparency.putEnumerated(
+                charIDToTypeID("Chnl"),
+                charIDToTypeID("Chnl"),
+                charIDToTypeID("Trsp")
+            );
             setDescriptor.putReference(charIDToTypeID("T   "), transparency);
             executeAction(charIDToTypeID("setd"), setDescriptor, DialogModes.NO);
         } finally {
-            if (maskDoc) maskDoc.close(SaveOptions.DONOTSAVECHANGES);
-            app.activeDocument = doc;
             if (selectionLayer) selectionLayer.remove();
+        }
+    }
+
+    function loadTransparencySelection(doc, maskFile) {
+        var originalLayer = doc.activeLayer;
+        $.global.__frSamCommit = function () {
+            placeMaskAsHiddenLayer(doc, maskFile);
+            try { doc.activeLayer = originalLayer; } catch (ignored) {}
+        };
+        try {
+            app.activeDocument = doc;
+            doc.suspendHistory("FR SAM 文本选区", "$.global.__frSamCommit()");
+        } finally {
+            try { delete $.global.__frSamCommit; } catch (ignored) { $.global.__frSamCommit = null; }
+            app.activeDocument = doc;
+            try { doc.activeLayer = originalLayer; } catch (ignored2) {}
         }
     }
 
@@ -345,10 +362,10 @@
     var responseFile = new File(requestFolder.fsName + "/response.json");
 
     try {
-        saveActiveLayer(doc, inputFile);
-        var hasRoi = saveSelection(doc, roiFile);
+        var hasRoi = saveInputPlanes(doc, inputFile, roiFile);
         var width = Math.round(doc.width.as("px"));
         var height = Math.round(doc.height.as("px"));
+        var resolution = Math.round(Number(doc.resolution) * 100) / 100;
         var bounds = { left: 0, top: 0, right: width, bottom: height };
         var request = {
             schemaVersion: 1,
@@ -356,12 +373,11 @@
             modelId: "sam3.1-multiplex-fp16",
             prompts: splitPrompts(parameters.prompt),
             threshold: parameters.threshold,
-            document: { width: width, height: height },
+            document: { width: width, height: height, resolution: resolution },
             input: { file: requestId + "/input.png", encoding: "png-rgba8", width: width, height: height, bounds: bounds },
             roi: hasRoi ? { file: requestId + "/roi.png", encoding: "png-alpha8", width: width, height: height, bounds: bounds } : null,
             output: { file: requestId + "/mask.png", encoding: "png-alpha8" }
         };
-        try { request.document.sourcePath = doc.fullName.fsName; } catch (ignored) {}
         writeText(requestFile, jsonStringify(request));
 
         var bridgeScript = runtime.backend + "/sam31_backend/legacy_bridge.py";

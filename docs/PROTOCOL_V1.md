@@ -1,6 +1,7 @@
 # SAM 3.1 本地后端协议 v1
 
-> 状态：产品化阶段 1 冻结草案  
+> 状态：v0.9.0 冻结协议
+>
 > 传输：仅 `127.0.0.1` HTTP；每次 Photoshop/插件会话使用独立 256-bit 令牌
 
 ## 1. 安全模型
@@ -22,7 +23,7 @@
 {
   "status": "ok",
   "protocolVersion": 1,
-  "backendVersion": "0.1.0",
+  "backendVersion": "0.9.0",
   "modelId": "sam3.1-multiplex-fp16",
   "modelReady": false
 }
@@ -42,7 +43,7 @@
   "document": {
     "width": 4000,
     "height": 6000,
-    "sourcePath": "D:\\images\\look-001.psd"
+    "resolution": 300
   },
   "input": {
     "file": "9f14b0f0-52f4-4b62-a7aa-82c756d2c8bd/input.png",
@@ -65,7 +66,7 @@
 }
 ```
 
-`roi` 可为 `null`。`sourcePath` 只用于诊断，可以缺省；后端不得读取该源文件。
+`roi` 可为 `null`。协议不传送源文件路径、图像内容摘要或提示词到持久日志；`resolution` 只用于让输出 PNG 保持文档像素密度。
 
 成功响应：
 

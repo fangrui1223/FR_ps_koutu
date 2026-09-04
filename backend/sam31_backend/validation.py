@@ -59,7 +59,7 @@ class InferRequest:
     threshold: float
     document_width: int
     document_height: int
-    source_path: str | None
+    document_resolution: float
     input: Plane
     roi: Plane | None
     output_relative_file: str
@@ -203,12 +203,15 @@ def parse_infer_request(raw: Any, session_root: Path) -> InferRequest:
     document = _object(request.get("document"), "document")
     document_width = _integer(document.get("width"), "document.width", 1, MAX_SIDE)
     document_height = _integer(document.get("height"), "document.height", 1, MAX_SIDE)
+    resolution_value = document.get("resolution", 72.0)
+    if isinstance(resolution_value, bool) or not isinstance(resolution_value, (int, float)):
+        raise _fail("INVALID_REQUEST", "document.resolution must be numeric.")
+    document_resolution = float(resolution_value)
+    if not 1.0 <= document_resolution <= 1200.0:
+        raise _fail("INVALID_REQUEST", "document.resolution is outside the supported range.")
+
     if document_width * document_height > MAX_PIXELS:
         raise _fail("INVALID_REQUEST", "Document exceeds the 96 MP limit.")
-    source_path = document.get("sourcePath")
-    if source_path is not None and (not isinstance(source_path, str) or len(source_path) > 32767):
-        raise _fail("INVALID_REQUEST", "document.sourcePath is invalid.")
-
     input_plane = _plane(
         request.get("input"),
         "input",
@@ -258,7 +261,7 @@ def parse_infer_request(raw: Any, session_root: Path) -> InferRequest:
         threshold=threshold,
         document_width=document_width,
         document_height=document_height,
-        source_path=source_path,
+        document_resolution=document_resolution,
         input=input_plane,
         roi=roi_plane,
         output_relative_file=output_relative_file,

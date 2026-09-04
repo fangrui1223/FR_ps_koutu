@@ -46,7 +46,7 @@ def main() -> None:
         "document": {
             "width": image.width,
             "height": image.height,
-            "sourcePath": str(args.image.resolve()),
+            "resolution": 300,
         },
         "input": {
             "file": f"{request_id}/input.rgba8",

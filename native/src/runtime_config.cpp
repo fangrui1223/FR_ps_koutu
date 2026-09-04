@@ -147,8 +147,9 @@ RuntimeConfig loadRuntimeConfigFile(const std::filesystem::path& path) {
             throw std::runtime_error("Missing runtime configuration field: " + key + ".");
         }
     }
-    if (values.at("schemaVersion") != "1") {
-        throw std::runtime_error("Unsupported SAM 3.1 runtime configuration version.");
+    const auto schemaVersion = values.at("schemaVersion");
+    if (schemaVersion != "1" && schemaVersion != "2") {
+        throw std::runtime_error("Unsupported FR SAM runtime configuration version.");
     }
 
     const std::filesystem::path rootValue(widen(values.at("installRoot")));
@@ -159,7 +160,10 @@ RuntimeConfig loadRuntimeConfigFile(const std::filesystem::path& path) {
     result.installRoot = root;
     result.python = resolveChild(root, values.at("python"), "Python runtime", false);
     result.backendRoot = resolveChild(root, values.at("backend"), "backend root", true);
-    result.modelCheckpoint = resolveChild(root, values.at("model"), "model checkpoint", false);
+    result.modelCheckpoint = schemaVersion == "2"
+        ? checkedExisting(std::filesystem::path(widen(values.at("model"))),
+                          "external model checkpoint", false)
+        : resolveChild(root, values.at("model"), "model checkpoint", false);
     result.officialSam3Root = resolveChild(root, values.at("officialSam3"), "official SAM 3 root", true);
     result.source = std::filesystem::absolute(path).lexically_normal();
     return result;
@@ -169,9 +173,9 @@ RuntimeConfig loadRuntimeConfig() {
     const auto overridePath = environmentPath(L"SAM31_RUNTIME_CONFIG");
     if (!overridePath.empty()) return loadRuntimeConfigFile(overridePath);
 
-    const auto programData = environmentPath(L"PROGRAMDATA");
-    if (programData.empty()) return developmentFallback();
-    const auto path = programData / L"FR" / L"SAM31 Photoshop Selection" / L"runtime-v1.ini";
+    const auto localAppData = environmentPath(L"LOCALAPPDATA");
+    if (localAppData.empty()) return developmentFallback();
+    const auto path = localAppData / L"FR" / L"FR SAM Text Selection" / L"runtime-v2.ini";
     if (!std::filesystem::is_regular_file(path)) return developmentFallback();
     return loadRuntimeConfigFile(path);
 }

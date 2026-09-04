@@ -66,7 +66,7 @@ class BackendProtocolTests(unittest.TestCase):
             "modelId": MODEL_ID,
             "prompts": ["black leather jacket", "pants"],
             "threshold": 0.5,
-            "document": {"width": 100, "height": 100, "sourcePath": "C:\\images\\a.psd"},
+            "document": {"width": 100, "height": 100, "resolution": 300.0},
             "input": {
                 "file": f"{request_id}/input.rgba8",
                 "encoding": "rgba8",
@@ -125,6 +125,7 @@ class BackendProtocolTests(unittest.TestCase):
         with Image.open(request_dir / "mask.png") as mask:
             self.assertEqual("RGBA", mask.mode)
             self.assertEqual(bytes([0, 64, 0, 0]), mask.getchannel("A").tobytes())
+            self.assertAlmostEqual(300.0, mask.info["dpi"][0], delta=0.1)
 
     def test_request_id_conflict_is_rejected(self):
         request = self.make_request()

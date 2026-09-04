@@ -184,13 +184,8 @@ async function captureDocument(options = {}) {
   const input = legacySafe
     ? await saveActiveLayerPng(doc, options.folder, bounds)
     : await captureActiveLayer(doc);
-  let sourcePath = null;
-  try {
-    sourcePath = doc.path ? String(doc.path) : null;
-  } catch (error) {
-    sourcePath = null;
-  }
-  return { doc, bounds, roi, input, sourcePath, legacySafe };
+  const resolution = Number(doc.resolution) || 72;
+  return { doc, bounds, roi, input, resolution, legacySafe };
 }
 
 async function commitSelectionFromPng(doc, maskFile, assertNotCancelled) {
@@ -246,7 +241,7 @@ async function commitSelection(doc, mask, width, height, bounds, assertNotCancel
       imageData,
       replace: true,
       targetBounds: { left: normalizedBounds.left, top: normalizedBounds.top },
-      commandName: "SAM 3.1 文本选区"
+      commandName: "FR SAM 文本选区"
     });
   } finally {
     dispose(imageData);

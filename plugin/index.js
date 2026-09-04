@@ -5,22 +5,29 @@ const { entrypoints } = require("uxp");
 const { normalizeActionInfo } = require("./lib/action-info.js");
 const { cancelActive, runSelection } = require("./lib/coordinator.js");
 
-const ACTION_METHOD = "sam31SelectionActionHandler";
-const ACTION_NAME = "SAM 3.1 文本选区";
+const ACTION_METHOD = "frSamSelectionActionHandler";
+const ACTION_NAME = "FR SAM 文本选区";
 let panelRoot = null;
 
 function setStatus(message, isError) {
   const element = panelRoot && panelRoot.querySelector("#status");
   if (!element) return;
   element.textContent = message;
+  element.title = message;
   element.classList.toggle("error", Boolean(isError));
+  const region = panelRoot.querySelector(".status-region");
+  if (region) region.classList.toggle("is-error", Boolean(isError));
 }
 
 function setBusy(busy) {
   if (!panelRoot) return;
+  const main = panelRoot.querySelector("main");
+  if (main) main.classList.toggle("is-busy", busy);
   panelRoot.querySelector("#run").disabled = busy;
   panelRoot.querySelector("#record").disabled = busy;
-  panelRoot.querySelector("#cancel").disabled = !busy;
+  const cancel = panelRoot.querySelector("#cancel");
+  cancel.hidden = !busy;
+  cancel.disabled = !busy;
 }
 
 function panelInfo() {
@@ -34,7 +41,7 @@ async function executeSelection(executionContext, info, legacySafeIo = false) {
   const stages = {
     capture: { message: "正在读取活动图层……", value: 0.05 },
     prepare: { message: "正在准备本地请求……", value: 0.20 },
-    infer: { message: "正在运行本地 SAM 3.1 推理……", value: 0.30 },
+    infer: { message: "正在运行本地 SAM 推理……", value: 0.30 },
     read: { message: "正在校验推理结果……", value: 0.85 },
     commit: { message: "正在写回 Photoshop 选区……", value: 0.95 },
     complete: { message: "选区写回完成。", value: 1.0 }
@@ -78,7 +85,7 @@ async function executeFromPanel(record) {
   }
 }
 
-globalThis.sam31SelectionActionHandler = async function sam31SelectionActionHandler(executionContext, rawInfo) {
+globalThis.frSamSelectionActionHandler = async function frSamSelectionActionHandler(executionContext, rawInfo) {
   const info = normalizeActionInfo(rawInfo);
   setStatus(`正在重放：${info.prompt} / ${info.threshold.toFixed(2)}`, false);
   try {

@@ -1,8 +1,8 @@
 {
   "manifestVersion": 6,
-  "id": "com.fr.sam31-selection.dev",
-  "name": "SAM 3.1 文本选区",
-  "version": "0.1.0",
+  "id": "com.fangrui.sam-selection",
+  "name": "FR SAM 文本选区",
+  "version": "0.9.0",
   "main": "index.html",
   "icons": [
     {
@@ -22,7 +22,7 @@
   ],
   "host": {
     "app": "PS",
-    "minVersion": "25.0.0",
+    "minVersion": "26.0.0",
     "data": {"apiVersion": 2, "loadEvent": "startup"}
   },
   "addon": {
@@ -35,7 +35,7 @@
     {
       "type": "panel",
       "id": "sam31SelectionPanel",
-      "label": {"default": "SAM 3.1 文本选区"},
+      "label": {"default": "FR SAM 文本选区"},
       "icons": [
         {
           "width": 23,
@@ -59,7 +59,7 @@
     {
       "type": "command",
       "id": "runRecordedDefaults",
-      "label": {"default": "执行 SAM 3.1 默认选区"}
+      "label": {"default": "执行 FR SAM 默认选区"}
     }
   ]
 }

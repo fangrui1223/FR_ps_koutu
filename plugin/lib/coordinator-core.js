@@ -19,7 +19,7 @@ function createCoordinator(dependencies) {
   }
 
   async function runSelection(info, options = {}) {
-    if (activeRun) throw new Error("已有一个 SAM 3.1 任务正在运行。");
+    if (activeRun) throw new Error("已有一个 FR SAM 任务正在运行。");
     const run = { requestId: null, cancelled: false };
     activeRun = run;
     let capture = null;

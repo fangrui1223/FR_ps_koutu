@@ -59,7 +59,7 @@ async function prepare(capture, info, buildInferRequest, allocated) {
       threshold: info.threshold,
       documentWidth: capture.bounds.right,
       documentHeight: capture.bounds.bottom,
-      sourcePath: capture.sourcePath,
+      documentResolution: capture.resolution,
       inputBounds: capture.input.bounds,
       inputFile: capture.input.fileName,
       inputEncoding: capture.input.encoding,

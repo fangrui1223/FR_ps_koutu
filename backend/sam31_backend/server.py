@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .adapters import AlphaProxyAdapter, InferenceAdapter
+from .diagnostics import event as diagnostic_event
 from .errors import ServiceError
 from .service import InferenceService, decode_json
 from .validation import MAX_JSON_BYTES
@@ -85,7 +86,16 @@ class Sam31RequestHandler(BaseHTTPRequestHandler):
                 request_id = raw["requestId"]
             response = self.server.service.infer(raw)
             self._send(200, response)
+            diagnostic_event(
+                "inference",
+                status="ok",
+                durationMs=round(float(response.get("timingsMs", {}).get("total", 0.0)), 2),
+                modelReady=self.server.service.adapter.model_ready,
+            )
         except ServiceError as error:
+            diagnostic_event(
+                "inference", status="error", code=error.code, retryable=error.retryable
+            )
             self._send(error.http_status, error.response(request_id))
         except (ValueError, OSError) as error:
             service_error = ServiceError(
@@ -99,6 +109,7 @@ class Sam31RequestHandler(BaseHTTPRequestHandler):
                 http_status=500,
                 retryable=True,
             )
+            diagnostic_event("inference", status="error", code=service_error.code, retryable=True)
             self._send(500, service_error.response(request_id))
 
 
@@ -157,6 +168,8 @@ def _write_ready_file(session_root: Path, relative_name: str, port: int) -> None
 def run_server(args: argparse.Namespace) -> int:
     session_root = args.session_root.resolve()
     session_root.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
     token = _read_and_remove_token(args.token_file.resolve())
     if args.mock_alpha:
         adapter: InferenceAdapter = AlphaProxyAdapter()
@@ -169,6 +182,7 @@ def run_server(args: argparse.Namespace) -> int:
     server = create_server(args.port, token, session_root, adapter)
     server.timeout = 0.5
     _write_ready_file(session_root, args.ready_file, server.server_address[1])
+    diagnostic_event("backend", status="ready", modelReady=adapter.model_ready)
 
     try:
         while True:
@@ -179,6 +193,7 @@ def run_server(args: argparse.Namespace) -> int:
             if args.idle_seconds > 0 and idle_for >= args.idle_seconds:
                 return 0
     finally:
+        diagnostic_event("backend", status="stopped", modelReady=adapter.model_ready)
         server.server_close()
 
 
