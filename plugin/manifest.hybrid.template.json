@@ -14,7 +14,8 @@
     "name": "sam31-supervisor.uxpaddon"
   },
   "requiredPermissions": {
-    "enableAddon": true
+    "enableAddon": true,
+    "localFileSystem": "fullAccess"
   },
   "entryPoints": [
     {

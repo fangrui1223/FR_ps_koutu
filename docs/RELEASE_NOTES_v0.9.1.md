@@ -5,6 +5,7 @@
 ## 修复内容
 
 - 修复后端已经安装但 Photoshop 面板误报“runtime is not installed”的问题。
+- 为正式 Hybrid 插件声明本机文件系统完整访问权限，使原生桥接能够读取安装器写入的运行时配置并启动离线后端；安装或更新 CCX 时会显示相应权限提示。
 - 原生 Addon 现在优先使用 Windows Known Folder API 定位当前用户 LocalAppData。
 - 后端安装器写入 HKCU 备用配置指针；同时保留环境变量兼容路径。
 - 配置定位失败时显示实际检查路径，便于区分配置缺失和访问失败。
@@ -19,4 +20,4 @@
 
 ## English summary
 
-This hotfix resolves false “runtime is not installed” errors inside Photoshop. Runtime discovery now uses the Windows LocalAppData known folder, an installer-owned HKCU pointer, and compatibility fallbacks. Reinstall both packages and restart Photoshop.
+This hotfix resolves false “runtime is not installed” errors inside Photoshop. Runtime discovery now uses the Windows LocalAppData known folder, an installer-owned HKCU pointer, and compatibility fallbacks. The hybrid manifest also declares the local filesystem permission required by the native bridge. Reinstall both packages, accept the local filesystem permission, and restart Photoshop.
