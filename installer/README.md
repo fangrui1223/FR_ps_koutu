@@ -9,7 +9,7 @@
 
 正式发布资产为：
 
-- FR-SAM-Text-Selection-Backend-0.9.0-Windows-x64.exe
+- FR-SAM-Text-Selection-Backend-0.9.1-Windows-x64.exe
 - com.fangrui.sam-selection_PS.ccx
 - SHA256SUMS.txt
 

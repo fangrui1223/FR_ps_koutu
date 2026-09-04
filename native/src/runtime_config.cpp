@@ -3,6 +3,7 @@
 #include "build_config.h"
 
 #include <windows.h>
+#include <shlobj.h>
 
 #include <algorithm>
 #include <cctype>
@@ -13,6 +14,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace sam31::supervisor {
 namespace {
@@ -46,6 +48,69 @@ std::filesystem::path environmentPath(const wchar_t* name) {
     if (written == 0 || written >= required) return {};
     value.resize(written);
     return std::filesystem::path(value);
+}
+
+std::filesystem::path knownFolderPath(REFKNOWNFOLDERID folderId) {
+    PWSTR raw = nullptr;
+    const HRESULT result = SHGetKnownFolderPath(folderId, KF_FLAG_DEFAULT, nullptr, &raw);
+    if (FAILED(result) || raw == nullptr) {
+        if (raw != nullptr) CoTaskMemFree(raw);
+        return {};
+    }
+    const std::filesystem::path path(raw);
+    CoTaskMemFree(raw);
+    return path;
+}
+
+std::filesystem::path registryRuntimeConfigPath() {
+    constexpr wchar_t key[] = L"Software\\FR\\FR SAM Text Selection";
+    constexpr wchar_t valueName[] = L"RuntimeConfig";
+    DWORD type = 0;
+    DWORD bytes = 0;
+    const LSTATUS query = RegGetValueW(HKEY_CURRENT_USER, key, valueName, RRF_RT_REG_SZ,
+                                       &type, nullptr, &bytes);
+    if (query != ERROR_SUCCESS || bytes < sizeof(wchar_t)) return {};
+
+    std::wstring value(bytes / sizeof(wchar_t), L'\0');
+    const LSTATUS read = RegGetValueW(HKEY_CURRENT_USER, key, valueName, RRF_RT_REG_SZ,
+                                      &type, value.data(), &bytes);
+    if (read != ERROR_SUCCESS) return {};
+    while (!value.empty() && value.back() == L'\0') value.pop_back();
+    return std::filesystem::path(value);
+}
+
+void appendUnique(std::vector<std::filesystem::path>& paths, std::filesystem::path candidate) {
+    if (candidate.empty()) return;
+    candidate = candidate.lexically_normal();
+    const auto duplicate = std::find_if(paths.begin(), paths.end(), [&](const auto& existing) {
+        return _wcsicmp(existing.c_str(), candidate.c_str()) == 0;
+    });
+    if (duplicate == paths.end()) paths.push_back(std::move(candidate));
+}
+
+std::vector<std::filesystem::path> runtimeConfigCandidates() {
+    constexpr wchar_t relative[] = L"FR\\FR SAM Text Selection\\runtime-v2.ini";
+    std::vector<std::filesystem::path> paths;
+    const auto localAppData = knownFolderPath(FOLDERID_LocalAppData);
+    if (!localAppData.empty()) appendUnique(paths, localAppData / relative);
+    appendUnique(paths, registryRuntimeConfigPath());
+    const auto environmentLocalAppData = environmentPath(L"LOCALAPPDATA");
+    if (!environmentLocalAppData.empty()) appendUnique(paths, environmentLocalAppData / relative);
+    const auto userProfile = environmentPath(L"USERPROFILE");
+    if (!userProfile.empty()) appendUnique(paths, userProfile / L"AppData\\Local" / relative);
+    return paths;
+}
+
+std::string utf8Path(const std::filesystem::path& path) {
+    const auto value = path.wstring();
+    if (value.empty()) return {};
+    const int count = WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()),
+                                          nullptr, 0, nullptr, nullptr);
+    if (count <= 0) return "<unprintable path>";
+    std::string result(static_cast<std::size_t>(count), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), result.data(),
+                        count, nullptr, nullptr);
+    return result;
 }
 
 std::filesystem::path checkedExisting(const std::filesystem::path& path, const char* label,
@@ -173,11 +238,32 @@ RuntimeConfig loadRuntimeConfig() {
     const auto overridePath = environmentPath(L"SAM31_RUNTIME_CONFIG");
     if (!overridePath.empty()) return loadRuntimeConfigFile(overridePath);
 
-    const auto localAppData = environmentPath(L"LOCALAPPDATA");
-    if (localAppData.empty()) return developmentFallback();
-    const auto path = localAppData / L"FR" / L"FR SAM Text Selection" / L"runtime-v2.ini";
-    if (!std::filesystem::is_regular_file(path)) return developmentFallback();
-    return loadRuntimeConfigFile(path);
+    const auto candidates = runtimeConfigCandidates();
+    std::vector<std::string> diagnostics;
+    for (const auto& path : candidates) {
+        std::error_code error;
+        if (std::filesystem::is_regular_file(path, error) && !error) {
+            return loadRuntimeConfigFile(path);
+        }
+        std::string detail = utf8Path(path);
+        detail += error ? " (" + error.message() + ")" : " (not a regular file)";
+        diagnostics.push_back(std::move(detail));
+    }
+
+#if SAM31_ALLOW_DEV_FALLBACK
+    return developmentFallback();
+#else
+    std::ostringstream message;
+    message << "未找到或无法访问 FR SAM 运行时配置。";
+    if (!diagnostics.empty()) {
+        message << " 已检查：";
+        for (const auto& detail : diagnostics) message << " " << detail << ";";
+    } else {
+        message << " Windows 无法解析当前用户的 LocalAppData 路径。";
+    }
+    message << " 请重新运行 Windows 后端安装器，然后重启 Photoshop。";
+    throw std::runtime_error(message.str());
+#endif
 }
 
 }  // namespace sam31::supervisor

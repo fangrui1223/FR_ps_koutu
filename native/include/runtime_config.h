@@ -14,8 +14,9 @@ struct RuntimeConfig {
 };
 
 // Release builds load a current-user configuration from
-// %LOCALAPPDATA%\FR\FR SAM Text Selection\runtime-v2.ini. Tests and build
-// tooling may override that location with SAM31_RUNTIME_CONFIG.
+// the Windows LocalAppData known folder, then an HKCU installer pointer and
+// environment fallbacks. Tests and build tooling may override that location
+// with SAM31_RUNTIME_CONFIG.
 RuntimeConfig loadRuntimeConfig();
 RuntimeConfig loadRuntimeConfigFile(const std::filesystem::path& path);
 

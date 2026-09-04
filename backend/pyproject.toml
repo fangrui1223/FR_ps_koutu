@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fr-sam-photoshop-backend"
-version = "0.9.0"
+version = "0.9.1"
 description = "Offline SAM 3.1 inference service for FR SAM Text Selection"
 requires-python = ">=3.10"
 dependencies = []

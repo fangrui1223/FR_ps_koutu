@@ -1,6 +1,6 @@
 # FR SAM 文本选区 / FR SAM Text Selection
 
-v0.9.0 是面向 Windows 10/11、Photoshop 2025/2026 的预发布版。插件在中文面板中接收英文文本提示词，只读取当前活动图层，通过本机 SAM 3.1 生成灰度 Photoshop 选区。安装完成后推理完全离线，不要求安装或启动 ComfyUI。
+v0.9.1 是面向 Windows 10/11、Photoshop 2025/2026 的预发布版。插件在中文面板中接收英文文本提示词，只读取当前活动图层，通过本机 SAM 3.1 生成灰度 Photoshop 选区。安装完成后推理完全离线，不要求安装或启动 ComfyUI。
 
 ## 主要能力
 
@@ -16,12 +16,12 @@ v0.9.0 是面向 Windows 10/11、Photoshop 2025/2026 的预发布版。插件在
 
 发布页提供两个文件，建议按顺序安装：
 
-1. FR-SAM-Text-Selection-Backend-0.9.0-Windows-x64.exe
+1. FR-SAM-Text-Selection-Backend-0.9.1-Windows-x64.exe
 2. com.fangrui.sam-selection_PS.ccx
 
 Windows 后端安装器要求 NVIDIA 显卡及至少 16 GB 显存。它可以引用已有的 sam3.1_multiplex_fp16.safetensors，也可以联网下载并校验固定模型；运行时、依赖和模型准备完成后，日常使用不联网。CCX 采用 Adobe UXP Developer Tool 的标准包格式，通过 Creative Cloud Desktop 安装。
 
-详细步骤见 [安装与发布说明](docs/INSTALLATION_AND_RELEASE.md)，动作和批处理方法见 [Photoshop 批处理兼容性](docs/PHOTOSHOP_BATCH_COMPATIBILITY.md)，完整证据见 [v0.9.0 测试报告](docs/TEST_REPORT_v0.9.0.md)。
+详细步骤见 [安装与发布说明](docs/INSTALLATION_AND_RELEASE.md)，动作和批处理方法见 [Photoshop 批处理兼容性](docs/PHOTOSHOP_BATCH_COMPATIBILITY.md)，完整证据见 [v0.9.1 测试报告](docs/TEST_REPORT_v0.9.1.md)。
 
 ## 使用
 

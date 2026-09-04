@@ -1,5 +1,5 @@
 #define AppName "FR SAM Text Selection Backend"
-#define AppVersion "0.9.0"
+#define AppVersion "0.9.1"
 #define Publisher "FR"
 
 [Setup]
@@ -34,6 +34,9 @@ Source: "stage\payload\installer\runtime-requirements.txt"; DestDir: "{app}\inst
 Source: "stage\payload\scripts\FR SAM Text Selection Image Processor.jsx"; DestDir: "{userappdata}\Adobe\Adobe Photoshop 2025\Presets\Scripts"; Flags: ignoreversion
 Source: "stage\payload\scripts\FR SAM Text Selection Image Processor.jsx"; DestDir: "{userappdata}\Adobe\Adobe Photoshop 2026\Presets\Scripts"; Flags: ignoreversion
 Source: "tools\Check-NvidiaGpu.ps1"; Flags: dontcopy
+
+[Registry]
+Root: HKCU; Subkey: "Software\FR\FR SAM Text Selection"; ValueType: string; ValueName: "RuntimeConfig"; ValueData: "{localappdata}\FR\FR SAM Text Selection\runtime-v2.ini"; Flags: uninsdeletekeyifempty
 
 [Code]
 var

@@ -1,6 +1,6 @@
 # SAM 3.1 本地后端协议 v1
 
-> 状态：v0.9.0 冻结协议
+> 状态：v0.9.1 冻结协议
 >
 > 传输：仅 `127.0.0.1` HTTP；每次 Photoshop/插件会话使用独立 256-bit 令牌
 
@@ -23,7 +23,7 @@
 {
   "status": "ok",
   "protocolVersion": 1,
-  "backendVersion": "0.9.0",
+  "backendVersion": "0.9.1",
   "modelId": "sam3.1-multiplex-fp16",
   "modelReady": false
 }

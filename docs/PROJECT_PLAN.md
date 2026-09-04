@@ -1,6 +1,6 @@
 # FR SAM 文本选区：架构与执行计划
 
-> 版本：0.9.0 Pre-release
+> 版本：0.9.1 Pre-release
 >
 > 更新日期：2026-09-04
 >
@@ -17,7 +17,7 @@
 
 ## 2. 冻结范围
 
-| 项目 | v0.9.0 决策 |
+| 项目 | v0.9.1 决策 |
 |---|---|
 | 输入 | 当前活动图层，普通像素层和智能对象 |
 | 图层语义 | 读取该层自身像素与透明度，忽略下方合成 |
@@ -53,7 +53,7 @@ Photoshop Hybrid UXP 插件包含中文面板、Action Recorder、短时捕获�
 
 Windows 安装器以当前用户权限安装到 LocalAppData。安装时选择引用已有固定哈希模型，或从 Comfy-Org 的固定地址下载并校验。它安装 CPython 3.10.11 embedded、PyTorch 2.10.0+cu128、torchvision 0.25.0+cu128、锁定依赖、官方 SAM 源码和图像处理器桥，随后强制离线运行预检。
 
-CCX 使用正式 ID com.fangrui.sam-selection、名称 FR SAM 文本选区、版本 0.9.0、Photoshop 最低版本 26.0.0。发布资产附带 SHA256SUMS.txt、MIT 许可证、Meta SAM 许可证和第三方通知。当前预发布包未做商业代码签名。
+CCX 使用正式 ID com.fangrui.sam-selection、名称 FR SAM 文本选区、版本 0.9.1、Photoshop 最低版本 26.0.0。发布资产附带 SHA256SUMS.txt、MIT 许可证、Meta SAM 许可证和第三方通知。当前预发布包未做商业代码签名。
 
 ## 6. 验证状态
 

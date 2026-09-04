@@ -2,7 +2,7 @@
   "manifestVersion": 6,
   "id": "com.fangrui.sam-selection",
   "name": "FR SAM 文本选区",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "main": "index.html",
   "icons": [
     {

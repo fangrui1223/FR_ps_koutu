@@ -36,7 +36,7 @@ target_include_directories(sam31_supervisor PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
   "${CMAKE_CURRENT_BINARY_DIR}/generated"
 )
-target_link_libraries(sam31_supervisor PRIVATE ws2_32 bcrypt)
+target_link_libraries(sam31_supervisor PRIVATE ws2_32 bcrypt shell32 ole32 advapi32)
 
 if(MSVC)
   target_compile_options(sam31_supervisor PRIVATE /W4 /permissive- /EHsc /utf-8)
@@ -64,7 +64,7 @@ if(BUILD_TESTING)
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_BINARY_DIR}/generated"
   )
-  target_link_libraries(sam31_supervisor_smoke PRIVATE ws2_32 bcrypt)
+  target_link_libraries(sam31_supervisor_smoke PRIVATE ws2_32 bcrypt shell32 ole32 advapi32)
   if(MSVC)
     target_compile_options(sam31_supervisor_smoke PRIVATE /W4 /permissive- /EHsc /utf-8)
   endif()
@@ -82,6 +82,7 @@ if(BUILD_TESTING)
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_BINARY_DIR}/generated"
   )
+  target_link_libraries(sam31_runtime_config_tests PRIVATE shell32 ole32 advapi32)
   if(MSVC)
     target_compile_options(sam31_runtime_config_tests PRIVATE /W4 /permissive- /EHsc /utf-8)
   endif()
