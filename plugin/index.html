@@ -9,7 +9,16 @@
     <main>
       <section class="panel-content">
         <h1>FR SAM 文本选区</h1>
+        <p id="version" class="version"></p>
         <p class="hint">英文提示词，逗号分隔，最多 5 个。</p>
+
+        <section class="status-region" aria-label="运行状态" aria-live="polite" aria-atomic="true">
+          <span class="status-indicator" aria-hidden="true"></span>
+          <p id="status" role="status" tabindex="0">就绪。首次启动较慢，连续任务复用模型。</p>
+          <sp-button id="cancel" disabled hidden title="取消当前任务">取消</sp-button>
+        </section>
+        <sp-button id="showDetail" hidden>查看错误详情</sp-button>
+        <p id="errorDetail" hidden></p>
 
         <div class="field-group prompt-group">
           <label for="prompt">提示词</label>
@@ -29,21 +38,15 @@
           <sp-button id="record">执行并录入动作</sp-button>
         </div>
 
-        <details class="rules">
-          <summary>当前规则</summary>
-          <ul>
+        <div class="rules">
+          <sp-button id="showRules">查看使用规则</sp-button>
+          <ul id="rulesList" hidden>
             <li>只读取一个活动图层，要求 RGB 8 位。</li>
             <li>原选区作为严格搜索范围。</li>
             <li>只返回全局置信度最高的一个对象。</li>
             <li>失败不修改原选区。</li>
           </ul>
-        </details>
-      </section>
-
-      <section class="status-region" aria-label="运行状态" aria-live="polite" aria-atomic="true">
-        <span class="status-indicator" aria-hidden="true"></span>
-        <p id="status" role="status" tabindex="0">就绪。首次执行会按需启动本地模型；连续任务复用，空闲后退出。</p>
-        <sp-button id="cancel" disabled hidden title="取消当前任务">取消</sp-button>
+        </div>
       </section>
     </main>
     <script src="index.js"></script>

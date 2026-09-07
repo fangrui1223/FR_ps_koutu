@@ -29,6 +29,8 @@ class InferenceService:
         self.cache_size = cache_size
         self._cache: OrderedDict[str, CachedResponse] = OrderedDict()
         self._lock = threading.Lock()
+        self._activity_lock = threading.Lock()
+        self._active_requests = 0
         self.last_activity = time.monotonic()
 
     def health(self) -> dict[str, Any]:
@@ -42,6 +44,20 @@ class InferenceService:
         }
 
     def infer(self, raw: Any) -> dict[str, Any]:
+        with self._activity_lock:
+            self._active_requests += 1
+        try:
+            return self._infer(raw)
+        finally:
+            with self._activity_lock:
+                self.last_activity = time.monotonic()
+                self._active_requests -= 1
+
+    def is_idle(self, seconds: float) -> bool:
+        with self._activity_lock:
+            return seconds > 0 and self._active_requests == 0 and time.monotonic() - self.last_activity >= seconds
+
+    def _infer(self, raw: Any) -> dict[str, Any]:
         request = parse_infer_request(raw, self.session_root)
         body_hash = hashlib.sha256(request.canonical_json.encode("utf-8")).hexdigest()
         self.last_activity = time.monotonic()

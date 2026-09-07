@@ -11,7 +11,7 @@ function createCoordinator(dependencies) {
   let activeRun = null;
 
   function throwIfCancelled(run) {
-    if (run && run.cancelled) {
+    if (run && (run.cancelled || (run.isCancelled && run.isCancelled()))) {
       const error = new Error("任务已取消，原选区保持不变。");
       error.code = "CANCELLED";
       throw error;
@@ -20,7 +20,7 @@ function createCoordinator(dependencies) {
 
   async function runSelection(info, options = {}) {
     if (activeRun) throw new Error("已有一个 FR SAM 任务正在运行。");
-    const run = { requestId: null, cancelled: false };
+    const run = { requestId: null, cancelled: false, isCancelled: options.isCancelled };
     activeRun = run;
     let capture = null;
     let prepared = null;
@@ -49,7 +49,10 @@ function createCoordinator(dependencies) {
       const mask = await sessionIo.readMask(prepared);
       throwIfCancelled(run);
       reportStage("commit");
-      const commit = () => photoshopIo.commitSelection(
+      const commit = async () => {
+        throwIfCancelled(run);
+        if (typeof photoshopIo.assertCaptureUnchanged === "function") photoshopIo.assertCaptureUnchanged(capture);
+        return photoshopIo.commitSelection(
           capture.doc,
           mask,
           response.mask.width,
@@ -57,6 +60,7 @@ function createCoordinator(dependencies) {
           response.mask.bounds,
           () => throwIfCancelled(run)
         );
+      };
       if (typeof options.executeCommit === "function") await options.executeCommit(commit);
       else await commit();
       reportStage("complete");

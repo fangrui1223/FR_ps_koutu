@@ -168,3 +168,21 @@ test("cancel still blocks commit when the backend cancel call fails", async () =
   await assert.rejects(running, /原选区保持不变/);
   assert.ok(!fixture.events.includes("commit"));
 });
+
+test("host Escape cancellation blocks commit even without panel cancellation", async () => {
+  const fixture = createFixture();
+  let cancelled = false;
+  fixture.dependencies.backend.infer = async () => { cancelled = true; return fixture.response; };
+  await assert.rejects(createCoordinator(fixture.dependencies).runSelection({}, {
+    isCancelled: () => cancelled
+  }), /原选区保持不变/);
+  assert.ok(!fixture.events.includes("commit"));
+});
+
+test("changed document guard runs inside commit modal and prevents write", async () => {
+  const fixture = createFixture();
+  fixture.dependencies.photoshopIo.assertCaptureUnchanged = () => { throw Error("changed"); };
+  await assert.rejects(createCoordinator(fixture.dependencies).runSelection({}), /changed/);
+  assert.ok(!fixture.events.includes("commit"));
+  assert.ok(fixture.events.includes("cleanup"));
+});

@@ -277,7 +277,17 @@ class Engine::Impl {
 
         for (int attempt = 0; attempt < 2; ++attempt) {
             if (cancelRequested_.load()) throw CancelledError("Inference was cancelled.");
-            const auto endpoint = ensureBackend(sessionRoot);
+            Endpoint endpoint;
+            try {
+                endpoint = ensureBackend(sessionRoot);
+            } catch (const CancelledError&) {
+                throw;
+            } catch (const std::exception&) {
+                if (cancelRequested_.load()) throw CancelledError("Inference was cancelled.");
+                if (attempt != 0) throw;
+                stopBackend();
+                continue;
+            }
             const HttpResult result = httpCall(endpoint.port, endpoint.token, "POST", "/v1/infer",
                                                requestJson, 10 * 60 * 1000);
             if (cancelRequested_.load()) throw CancelledError("Inference was cancelled.");

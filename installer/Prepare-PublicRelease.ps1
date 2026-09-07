@@ -5,7 +5,7 @@ param(
     [string]$HybridSdkRoot,
 
     [string]$PluginId = 'com.fangrui.sam-selection',
-    [string]$Version = '0.9.1',
+    [string]$Version = '0.9.2',
     [switch]$SkipNativeBuild
 )
 
@@ -82,16 +82,19 @@ $scriptTarget = Join-Path $payloadRoot 'scripts\FR SAM Text Selection Image Proc
 New-Item -ItemType Directory -Path (Split-Path -Parent $scriptTarget) -Force | Out-Null
 $script = Get-Content -LiteralPath (Join-Path $projectRoot 'legacy\SAM31 Image Processor Bridge.jsx') -Raw
 $script = $script.Replace(
-    'var ALLOW_DEV_FALLBACK = true; // @sam31-release-dev-fallback',
-    'var ALLOW_DEV_FALLBACK = false; // @sam31-release-dev-fallback'
+    'var ALLOW_DEV_FALLBACK = true; // Build marker: sam31-release-dev-fallback',
+    'var ALLOW_DEV_FALLBACK = false; // Build marker: sam31-release-dev-fallback'
 )
 $script = [regex]::Replace(
     $script,
-    '(?s)\s*// @sam31-dev-runtime-begin.*?// @sam31-dev-runtime-end',
+    '(?s)\s*// Build marker: sam31-dev-runtime-begin.*?// Build marker: sam31-dev-runtime-end',
     [Environment]::NewLine + '    var DEV_RUNTIME = null;'
 )
 if ($script -match 'C:/FR_comfyui|D:/FR_AI') {
     throw 'A development path remains in the release ExtendScript.'
+}
+if ($script -match '//\s*@sam31' -or $script -notmatch 'var ALLOW_DEV_FALLBACK = false;' -or $script -match 'var ALLOW_DEV_FALLBACK = true;') {
+    throw 'Unsafe ExtendScript directive or development fallback in the release script.'
 }
 [IO.File]::WriteAllText($scriptTarget, $script, [Text.UTF8Encoding]::new($false))
 
@@ -140,6 +143,15 @@ New-Item -ItemType Directory -Path $addonTarget -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $releaseBuild 'Release\sam31-supervisor.uxpaddon') -Destination $addonTarget -Force
 
 $manifest = Get-Content -LiteralPath (Join-Path $projectRoot 'plugin\manifest.json') -Raw | ConvertFrom-Json
+if ($manifest.requiredPermissions.enableAddon -ne $true -or
+    $manifest.requiredPermissions.localFileSystem -ne 'fullAccess') {
+    throw 'Hybrid release requires enableAddon AND localFileSystem: fullAccess. Refusing to package an inaccessible runtime.'
+}
+if ($manifest.version -ne $Version -or
+    (Get-Content -LiteralPath (Join-Path $projectRoot 'installer\FRSAMTextSelection.iss') -Raw) -notmatch ('#define AppVersion "' + [regex]::Escape($Version) + '"') -or
+    (Get-Content -LiteralPath (Join-Path $projectRoot 'backend\sam31_backend\__init__.py') -Raw) -notmatch ('BACKEND_VERSION = "' + [regex]::Escape($Version) + '"')) {
+    throw 'Plugin, backend, installer and requested release versions must match.'
+}
 $manifest.id = $PluginId
 $manifest.name = 'FR SAM 文本选区'
 $manifest.version = $Version

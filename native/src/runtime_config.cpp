@@ -225,6 +225,9 @@ RuntimeConfig loadRuntimeConfigFile(const std::filesystem::path& path) {
     result.installRoot = root;
     result.python = resolveChild(root, values.at("python"), "Python runtime", false);
     result.backendRoot = resolveChild(root, values.at("backend"), "backend root", true);
+    if (schemaVersion == "2" && !std::filesystem::path(widen(values.at("model"))).is_absolute()) {
+        throw std::runtime_error("Configured external model checkpoint must be absolute.");
+    }
     result.modelCheckpoint = schemaVersion == "2"
         ? checkedExisting(std::filesystem::path(widen(values.at("model"))),
                           "external model checkpoint", false)

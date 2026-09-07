@@ -19,10 +19,10 @@
     var KEY_THRESHOLD = stringIDToTypeID("sam31Threshold");
     var SESSION_ROOT = new Folder(Folder.temp.fsName + "/sam31-selection-legacy");
     // Formal source uses only the current-user runtime configuration.
-    var ALLOW_DEV_FALLBACK = false; // @sam31-release-dev-fallback
-    // @sam31-dev-runtime-begin
+    var ALLOW_DEV_FALLBACK = false; // Build marker: sam31-release-dev-fallback
+    // Build marker: sam31-dev-runtime-begin
     var DEV_RUNTIME = null;
-    // @sam31-dev-runtime-end
+    // Build marker: sam31-dev-runtime-end
 
     function fail(message) {
         throw new Error("FR SAM 文本选区：" + message);
@@ -235,12 +235,48 @@
         return color;
     }
 
+    function duplicateWithSelection(doc, hasRoi) {
+        if (!hasRoi) return doc.duplicate("FR-SAM-export", false);
+        // Document.duplicate does not retain fsel in Photoshop's old DOM.
+        // Carry the exact grayscale selection through a temporary alpha channel,
+        // then restore the source state before any backend work is performed.
+        var previousState = doc.activeHistoryState;
+        var previousLayer = doc.activeLayer;
+        var previousChannels = doc.activeChannels;
+        var channelName = "FR-SAM-ROI-" + new Date().getTime();
+        var copy = null;
+        try {
+            var channel = doc.channels.add();
+            channel.name = channelName;
+            doc.selection.store(channel, SelectionType.REPLACE);
+            doc.activeChannels = doc.componentChannels;
+            copy = doc.duplicate("FR-SAM-export", false);
+        } finally {
+            app.activeDocument = doc;
+            doc.activeHistoryState = previousState;
+            doc.activeLayer = previousLayer;
+            doc.activeChannels = previousChannels;
+        }
+        try {
+            app.activeDocument = copy;
+            copy.activeChannels = copy.componentChannels;
+            var copiedChannel = copy.channels.getByName(channelName);
+            copy.selection.load(copiedChannel, SelectionType.REPLACE);
+            copiedChannel.remove();
+            return copy;
+        } catch (error) {
+            if (copy) copy.close(SaveOptions.DONOTSAVECHANGES);
+            app.activeDocument = doc;
+            throw error;
+        }
+    }
+
     function saveInputPlanes(doc, inputFile, roiFile) {
         var original = app.activeDocument;
         var exportDoc = null;
         var hasRoi = hasSelection(doc);
         try {
-            exportDoc = doc.duplicate("FR-SAM-export", false);
+            exportDoc = duplicateWithSelection(doc, hasRoi);
             app.activeDocument = exportDoc;
 
             var sourceLayer = exportDoc.activeLayer;
@@ -254,7 +290,9 @@
             }
             exportedLayer.visible = true;
             exportedLayer.blendMode = BlendMode.NORMAL;
-            try { exportedLayer.grouped = false; } catch (ignored) {}
+            // Photoshop's ExtendScript setter can toggle clipping even when
+            // assigning false to an already-unclipped layer. Inspect first.
+            if (exportedLayer.grouped) exportedLayer.grouped = false;
 
             var options = new PNGSaveOptions();
             options.interlaced = false;
@@ -275,10 +313,28 @@
         }
     }
 
+    function placedCanvasFrame() {
+        var reference = new ActionReference();
+        reference.putEnumerated(charIDToTypeID("Lyr "), charIDToTypeID("Ordn"), charIDToTypeID("Trgt"));
+        var descriptor = executeActionGet(reference);
+        var transform = descriptor.getObjectValue(stringIDToTypeID("smartObjectMore")).getList(stringIDToTypeID("transform"));
+        var x = transform.getDouble(0), y = transform.getDouble(1);
+        var right = transform.getDouble(2), bottom = transform.getDouble(7);
+        if (!isFinite(x) || !isFinite(y) || !(right > x) || !(bottom > y) ||
+            Math.abs(transform.getDouble(3) - y) > 0.01 || Math.abs(transform.getDouble(6) - x) > 0.01) {
+            fail("无法确定掩码置入坐标，已保留原选区。");
+        }
+        return { x: x, y: y, width: right - x, height: bottom - y };
+    }
+
     function placeMaskAsHiddenLayer(doc, maskFile) {
         var selectionLayer = null;
         try {
             app.activeDocument = doc;
+            // Place centers a full-canvas PNG on the current selection when one
+            // exists. ROI is already encoded in the returned mask, so remove
+            // fsel before placing it to preserve document pixel coordinates.
+            doc.selection.deselect();
             var place = new ActionDescriptor();
             place.putPath(charIDToTypeID("null"), maskFile);
             place.putEnumerated(
@@ -289,6 +345,21 @@
             executeAction(charIDToTypeID("Plc "), place, DialogModes.NO);
             selectionLayer = doc.activeLayer;
             selectionLayer.name = "FR SAM temporary mask";
+            // Place can also center on the visible viewport and resize according
+            // to host preferences. Align the smart object's entire source canvas,
+            // not layer.bounds (which excludes transparent mask margins).
+            var width = doc.width.as("px"), height = doc.height.as("px");
+            var frame = placedCanvasFrame();
+            if (Math.abs(frame.width - width) > 0.001 || Math.abs(frame.height - height) > 0.001) {
+                selectionLayer.resize(width * 100 / frame.width, height * 100 / frame.height, AnchorPosition.TOPLEFT);
+                frame = placedCanvasFrame();
+            }
+            selectionLayer.translate(UnitValue(-frame.x, "px"), UnitValue(-frame.y, "px"));
+            frame = placedCanvasFrame();
+            if (Math.abs(frame.x) > 0.05 || Math.abs(frame.y) > 0.05 ||
+                Math.abs(frame.width - width) > 0.05 || Math.abs(frame.height - height) > 0.05) {
+                fail("掩码坐标校验失败，已保留原选区。");
+            }
             selectionLayer.visible = false;
 
             var setDescriptor = new ActionDescriptor();
@@ -310,6 +381,7 @@
 
     function loadTransparencySelection(doc, maskFile) {
         var originalLayer = doc.activeLayer;
+        var originalState = doc.activeHistoryState;
         $.global.__frSamCommit = function () {
             placeMaskAsHiddenLayer(doc, maskFile);
             try { doc.activeLayer = originalLayer; } catch (ignored) {}
@@ -317,6 +389,10 @@
         try {
             app.activeDocument = doc;
             doc.suspendHistory("FR SAM 文本选区", "$.global.__frSamCommit()");
+        } catch (error) {
+            app.activeDocument = doc;
+            doc.activeHistoryState = originalState;
+            throw error;
         } finally {
             try { delete $.global.__frSamCommit; } catch (ignored) { $.global.__frSamCommit = null; }
             app.activeDocument = doc;

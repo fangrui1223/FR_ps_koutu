@@ -34,6 +34,10 @@ class Sam31RequestHandler(BaseHTTPRequestHandler):
     server: Sam31HttpServer
     protocol_version = "HTTP/1.1"
 
+    def setup(self) -> None:
+        super().setup()
+        self.connection.settimeout(15)
+
     def log_message(self, format: str, *args: Any) -> None:
         return
 
@@ -43,11 +47,13 @@ class Sam31RequestHandler(BaseHTTPRequestHandler):
         return secrets.compare_digest(provided, expected)
 
     def _send(self, status: int, body: dict[str, Any]) -> None:
+        self.close_connection = True
         payload = json.dumps(body, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(payload)
 
@@ -141,13 +147,19 @@ def _parent_alive(parent_pid: int) -> bool:
     if parent_pid <= 0:
         return True
     if os.name == "nt":
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+        kernel.CloseHandle.restype = wintypes.BOOL
         process_query_limited_information = 0x1000
-        handle = ctypes.windll.kernel32.OpenProcess(
+        handle = kernel.OpenProcess(
             process_query_limited_information, False, parent_pid
         )
         if not handle:
             return False
-        ctypes.windll.kernel32.CloseHandle(handle)
+        kernel.CloseHandle(handle)
         return True
     try:
         os.kill(parent_pid, 0)
@@ -189,8 +201,7 @@ def run_server(args: argparse.Namespace) -> int:
             server.handle_request()
             if not _parent_alive(args.parent_pid):
                 return 0
-            idle_for = time.monotonic() - server.service.last_activity
-            if args.idle_seconds > 0 and idle_for >= args.idle_seconds:
+            if server.service.is_idle(args.idle_seconds):
                 return 0
     finally:
         diagnostic_event("backend", status="stopped", modelReady=adapter.model_ready)

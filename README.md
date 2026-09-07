@@ -1,6 +1,8 @@
 # FR SAM 文本选区 / FR SAM Text Selection
 
-v0.9.1 是面向 Windows 10/11、Photoshop 2025/2026 的预发布版。插件在中文面板中接收英文文本提示词，只读取当前活动图层，通过本机 SAM 3.1 生成灰度 Photoshop 选区。安装完成后推理完全离线，不要求安装或启动 ComfyUI。
+v0.9.2 是面向 Windows 10/11、Photoshop 2025/2026 的预发布版。插件在中文面板中接收英文文本提示词，只读取当前活动图层，通过本机 SAM 3.1 生成灰度 Photoshop 选区。安装完成后推理完全离线，不要求安装或启动 ComfyUI。
+
+本版修复旧安装副本缺失文件权限引起的运行时配置报错、图像处理器脚本编译标记错误，并加强安装升级、取消、原选区保护和面板状态反馈。升级后请重启 Photoshop；若同版本重装仍保留旧界面，先通过 Creative Cloud 卸载 **FR SAM 插件**再安装 CCX，无需删除模型和 Photoshop 动作。
 
 ## 主要能力
 
@@ -16,12 +18,12 @@ v0.9.1 是面向 Windows 10/11、Photoshop 2025/2026 的预发布版。插件在
 
 发布页提供两个文件，建议按顺序安装：
 
-1. FR-SAM-Text-Selection-Backend-0.9.1-Windows-x64.exe
+1. FR-SAM-Text-Selection-Backend-0.9.2-Windows-x64.exe
 2. com.fangrui.sam-selection_PS.ccx
 
 Windows 后端安装器要求 NVIDIA 显卡及至少 16 GB 显存。它可以引用已有的 sam3.1_multiplex_fp16.safetensors，也可以联网下载并校验固定模型；运行时、依赖和模型准备完成后，日常使用不联网。CCX 采用 Adobe UXP Developer Tool 的标准包格式，通过 Creative Cloud Desktop 安装。
 
-详细步骤见 [安装与发布说明](docs/INSTALLATION_AND_RELEASE.md)，动作和批处理方法见 [Photoshop 批处理兼容性](docs/PHOTOSHOP_BATCH_COMPATIBILITY.md)，完整证据见 [v0.9.1 测试报告](docs/TEST_REPORT_v0.9.1.md)。
+详细步骤见 [安装与发布说明](docs/INSTALLATION_AND_RELEASE.md)，动作和批处理方法见 [Photoshop 批处理兼容性](docs/PHOTOSHOP_BATCH_COMPATIBILITY.md)，本轮证据见 [v0.9.2 测试报告](docs/TEST_REPORT_v0.9.2.md)。
 
 ## 使用
 
@@ -34,12 +36,12 @@ Windows 后端安装器要求 NVIDIA 显卡及至少 16 GB 显存。它可以引
 
 ## 已验证
 
-- Photoshop 2026 27.10：面板、正式 SAM 推理、动作录入/重放、Batch、PSJS、普通像素层、智能对象、严格 ROI、取消和灰度选区写回。
+- Photoshop 2026 27.10：本轮实测最终安装 CCX 的面板、正式 SAM 推理、普通像素层、智能对象和严格 ROI。历次动作、Batch、PSJS 验证与本轮复测范围在测试报告中分列。
 - 独立稳定运行时：PyTorch 2.10.0+cu128、torchvision 0.25.0+cu128、CUDA 12.8；没有 ComfyUI 路径依赖。
-- RTX 5090、约 39 MP 实图：专门基准的冷启动约 8.15 秒；v0.9.1 发布复测的冷启动为 9.94–10.17 秒，连续热请求为 0.69–0.88 秒。8 秒是优化目标，不作为每次冷启动硬上限。
-- 最终安装版后端连续处理测试文件夹 20 张真实大图：20/20 成功，总计 65.17 秒；首张含冷启动约 9.99 秒，其余约 1.68–1.97 秒。
-- 1000 次连续后端请求：1000/1000 成功。
-- 原生 Release 构建测试：2/2 通过；Python 后端测试：10/10；UXP 测试套件：9/9。
+- RTX 5090、约 39 MP 实图：本轮最终 CCX 的首次后端推理约 9.80 秒。8 秒仍为热端到端优化目标，不作为每次冷启动硬上限。
+- 最终安装版后端连续处理 20 张真实大图：20/20 成功，总计 69.16 秒；首张请求含冷启动约 10.79 秒，其余约 1.73–2.07 秒。总时间还包含测试图片解码、输入导出和结果检查，不等同于 Photoshop 图像处理器整批耗时。
+- 1000 次连续本地 HTTP 请求：1000/1000 成功，使用 2×2 AlphaProxy 测试适配器验证传输与服务稳定性，不是 1000 张真实 SAM/Photoshop 批处理。
+- 原生 Release 构建测试：2/2 通过；Python 后端测试：15/15；插件 Node 测试：21/21，另有纯逻辑套件通过。
 
 这是未签名的免费预发布版。Photoshop 2025、Windows 10 和恰好 16 GB 显卡没有在当前开发机上做同配置实机验收；兼容声明来自 API/清单下限与静态测试，问题请在 GitHub Issues 报告。
 

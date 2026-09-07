@@ -29,7 +29,7 @@ def _http(port: int, token: str, method: str, path: str, body: dict[str, Any] | 
     headers = {"Authorization": f"Bearer {token}"}
     if payload is not None:
         headers.update({"Content-Type": "application/json", "Content-Length": str(len(payload))})
-    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=10 * 60)
+    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5 if method == "GET" else 10 * 60)
     try:
         connection.request(method, path, body=payload, headers=headers)
         response = connection.getresponse()
@@ -161,7 +161,7 @@ def run(args: argparse.Namespace) -> int:
                 _atomic_json(args.response_file, response)
                 return 0
             last_error = RuntimeError("The backend returned a technical failure.")
-        except (OSError, ValueError, KeyError, json.JSONDecodeError, ConnectionError, TimeoutError) as error:
+        except (OSError, ValueError, KeyError, RuntimeError, http.client.HTTPException) as error:
             last_error = error
         _stop_endpoint(endpoint, endpoint_file)
         if attempt == 0:

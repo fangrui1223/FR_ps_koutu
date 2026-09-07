@@ -2,6 +2,7 @@
 #include "supervisor.h"
 
 #include <exception>
+#include <atomic>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -10,6 +11,10 @@
 namespace {
 
 using sam31::supervisor::Engine;
+// Owned thread: never unload native code while a detached worker still runs.
+std::thread inferenceWorker;
+std::atomic<bool> workerRunning{false};
+std::atomic<bool> terminating{false};
 
 std::string readString(addon_env env, addon_value value) {
     size_t length = 0;
@@ -86,6 +91,10 @@ void finishPromise(addon_task_data data) {
 
 addon_value Infer(addon_env env, addon_callback_info info) {
     try {
+        if (terminating.load() || workerRunning.load()) {
+            throw std::runtime_error("Native bridge is busy or shutting down.");
+        }
+        if (inferenceWorker.joinable()) inferenceWorker.join();
         auto [sessionRoot, requestJson] = readInferArguments(env, info);
         addon_deferred deferred = nullptr;
         addon_value promise = nullptr;
@@ -97,7 +106,8 @@ addon_value Infer(addon_env env, addon_callback_info info) {
         result->env = env;
         result->deferred = deferred;
         try {
-            std::thread([result, sessionRoot = std::move(sessionRoot), requestJson = std::move(requestJson)]() mutable {
+            workerRunning.store(true);
+            inferenceWorker = std::thread([result, sessionRoot = std::move(sessionRoot), requestJson = std::move(requestJson)]() mutable {
                 try {
                     result->value = Engine::instance().infer(sessionRoot, requestJson);
                     result->success = true;
@@ -111,10 +121,16 @@ addon_value Infer(addon_env env, addon_callback_info info) {
                     result->code = "BACKEND_TECHNICAL_FAILURE";
                     result->message = "Unknown native bridge failure.";
                 }
-                UxpAddonApis.uxp_addon_schedule_on_javascript_queue(
-                    result->env, finishPromise, result, deletePromiseResult);
-            }).detach();
+                workerRunning.store(false);
+                if (terminating.load()) {
+                    delete result;
+                } else {
+                    UxpAddonApis.uxp_addon_schedule_on_javascript_queue(
+                        result->env, finishPromise, result, deletePromiseResult);
+                }
+            });
         } catch (...) {
+            workerRunning.store(false);
             delete result;
             throw;
         }
@@ -154,7 +170,9 @@ addon_value Init(addon_env env, addon_value exports, const addon_apis&) {
 }
 
 void Terminate(addon_env) {
+    terminating.store(true);
     Engine::instance().shutdown();
+    if (inferenceWorker.joinable()) inferenceWorker.join();
 }
 
 }  // namespace

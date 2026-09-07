@@ -121,15 +121,15 @@ async function captureSelection(doc, bounds) {
   try {
     result = await photoshop.imaging.getSelection({ documentID: doc.id, sourceBounds: bounds });
   } catch (error) {
-    return null;
+    throw new Error("无法读取原选区，已停止以避免误在全图搜索。" + (error.message || String(error)));
   }
-  if (!result || !result.imageData) return null;
+  if (!result || !result.imageData) throw new Error("原选区未返回有效像素，已停止以保护搜索范围。");
   try {
     const data = await result.imageData.getData({ chunky: true });
     const sourceBounds = normalizeBounds(result.sourceBounds, "搜索选区边界");
     assertInside(bounds, sourceBounds, "搜索选区边界");
     const normalized = normalizeGray8(data, result.imageData, sourceBounds, "搜索选区");
-    if (!hasNonZero(normalized)) return null;
+    if (!hasNonZero(normalized)) throw new Error("原选区没有可用像素，已停止以保护搜索范围。");
     const { width, height } = dimensions(sourceBounds);
     return { data: normalized, bounds: sourceBounds, width, height };
   } finally {
@@ -185,7 +185,24 @@ async function captureDocument(options = {}) {
     ? await saveActiveLayerPng(doc, options.folder, bounds)
     : await captureActiveLayer(doc);
   const resolution = Number(doc.resolution) || 72;
-  return { doc, bounds, roi, input, resolution, legacySafe };
+  const state = {
+    documentId: doc.id,
+    layerId: doc.activeLayers[0].id,
+    width: Number(doc.width), height: Number(doc.height),
+    historyId: doc.activeHistoryState && doc.activeHistoryState.id
+  };
+  return { doc, bounds, roi, input, resolution, legacySafe, state };
+}
+
+function assertCaptureUnchanged(capture) {
+  const doc = photoshop.app.activeDocument;
+  const state = capture.state;
+  if (!state || !doc || doc.id !== state.documentId ||
+      doc.activeLayers.length !== 1 || doc.activeLayers[0].id !== state.layerId ||
+      Number(doc.width) !== state.width || Number(doc.height) !== state.height ||
+      (state.historyId != null && (!doc.activeHistoryState || doc.activeHistoryState.id !== state.historyId))) {
+    throw new Error("推理期间文档、图层或历史状态已改变，本次结果未写入。请重新生成选区。");
+  }
 }
 
 async function commitSelectionFromPng(doc, maskFile, assertNotCancelled) {
@@ -249,6 +266,7 @@ async function commitSelection(doc, mask, width, height, bounds, assertNotCancel
 }
 
 module.exports = {
+  assertCaptureUnchanged,
   assertSupportedDocument,
   captureActiveLayer,
   captureDocument,

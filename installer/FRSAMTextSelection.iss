@@ -1,5 +1,5 @@
 #define AppName "FR SAM Text Selection Backend"
-#define AppVersion "0.9.1"
+#define AppVersion "0.9.2"
 #define Publisher "FR"
 
 [Setup]
@@ -42,6 +42,13 @@ Root: HKCU; Subkey: "Software\FR\FR SAM Text Selection"; ValueType: string; Valu
 var
   ModelChoicePage: TInputOptionWizardPage;
   ModelFilePage: TInputFileWizardPage;
+  RuntimeInstallFailed: Boolean;
+
+function GetCustomSetupExitCode: Integer;
+begin
+  if RuntimeInstallFailed then Result := 1
+  else Result := 0;
+end;
 
 function DataRoot: String;
 begin
@@ -130,6 +137,7 @@ var
   Parameters: String;
   Mode: String;
 begin
+  RuntimeInstallFailed := True;
   WizardForm.StatusLabel.Caption := '正在下载并安装固定本地推理运行时。首次安装时间取决于网络速度……';
   WizardForm.ProgressGauge.Style := npbstMarquee;
   if ModelChoicePage.SelectedValueIndex = 0 then Mode := 'existing'
@@ -155,6 +163,7 @@ begin
       '固定推理运行时安装或自检失败（退出码 ' + IntToStr(ResultCode) +
       '）。请查看安装日志，确认网络、NVIDIA 驱动和磁盘空间后重试。'
     );
+  RuntimeInstallFailed := False;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

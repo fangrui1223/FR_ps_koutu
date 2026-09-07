@@ -21,6 +21,13 @@ _ALLOWED_FIELDS = {
 _logger: logging.Logger | None = None
 
 
+class QuietRotatingFileHandler(RotatingFileHandler):
+    def handleError(self, record: logging.LogRecord) -> None:
+        # Permission/disk/rotation failures are non-fatal. Never dump private
+        # local paths and a traceback for every image in a long batch.
+        return
+
+
 def _log_root() -> Path:
     local = os.environ.get("LOCALAPPDATA")
     base = Path(local) if local else Path(os.environ.get("TEMP", "."))
@@ -37,7 +44,7 @@ def logger() -> logging.Logger:
     if not instance.handlers:
         root = _log_root()
         root.mkdir(parents=True, exist_ok=True)
-        handler = RotatingFileHandler(
+        handler = QuietRotatingFileHandler(
             root / "backend.log",
             maxBytes=512 * 1024,
             backupCount=2,

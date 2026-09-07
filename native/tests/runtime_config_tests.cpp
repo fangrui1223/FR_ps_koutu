@@ -98,6 +98,14 @@ int wmain() {
         const auto traversal = fixture.write(
             prefix + "officialSam3=..\\outside\n", "traversal.ini");
         expectFailure([&] { sam31::supervisor::loadRuntimeConfigFile(traversal); }, "path traversal");
+        const auto relativeModelV2 = fixture.write(
+            "schemaVersion=2\ninstallRoot=" + utf8(fixture.root) +
+            "\npython=runtime\\python.exe\nbackend=backend\nmodel=models\\model.safetensors\nofficialSam3=vendor\\sam3\n",
+            "relative-model.ini");
+        const auto originalCwd = std::filesystem::current_path();
+        std::filesystem::current_path(fixture.root);  // Relative file really exists; must still reject it.
+        expectFailure([&] { sam31::supervisor::loadRuntimeConfigFile(relativeModelV2); }, "v2 relative model");
+        std::filesystem::current_path(originalCwd);
 
         const auto unknown = fixture.write(
             prefix + "officialSam3=vendor\\sam3\nunexpected=value\n", "unknown.ini");
