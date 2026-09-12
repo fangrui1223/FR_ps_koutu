@@ -6,6 +6,10 @@
 >
 > 目标：Windows 10/11、Photoshop 2025/2026、NVIDIA GPU（最低 16 GB）
 
+新增已确认需求（待实现，不属于现有 v0.9.3 能力）：[单个最佳／全部匹配模式及动作兼容规则](SELECTION_MODES_REQUIREMENTS.md)。2026-09-12 当前用户运行时配置恢复见 [修复与实机验证记录](RUNTIME_RECOVERY_2026-09-12.md)。
+
+图像处理器的命令窗口与画布闪烁已完成 24 张实图诊断及单背景导出对照，优化方案尚未实施，见 [批处理界面优化评估](BATCH_UI_OPTIMIZATION_2026-09-12.md)。
+
 ## 1. 产品结论
 
 项目采用 Adobe Manifest v6 Hybrid UXP 插件加当前用户级 Windows 后端。Photoshop 负责活动图层捕获、动作参数和选区写回；本地后端负责模型生命周期与 SAM 3.1 推理。后端不依赖 ComfyUI 或用户 Python，首次请求按需启动，批次内复用，空闲后退出。
