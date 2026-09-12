@@ -59,6 +59,18 @@
         if (fullCount() !== total) throw Error("Formal bridge did not select every pixel on NO_OBJECT.");
         assertNoLeaks();
         record("Formal installed bridge: NO_OBJECT -> full canvas.");
+
+        // Complex inputs must retain the original isolated-layer path.
+        doc.selection.deselect();
+        executeAction(stringIDToTypeID("newPlacedLayer"), undefined, DialogModes.NO);
+        if (doc.activeLayer.kind !== LayerKind.SMARTOBJECT) throw Error("QA smart object creation failed.");
+        var roiRight = Math.floor(doc.width.as("px") * 0.55);
+        doc.selection.select([[0,0],[roiRight,0],[roiRight,doc.height.as("px")],[0,doc.height.as("px")]]);
+        executeAction(stringIDToTypeID("sam31ImageProcessorBridge"), parameters("green top", 0.5), DialogModes.NO);
+        var roiBounds = doc.selection.bounds;
+        if (roiBounds[2].as("px") > roiRight || fullCount() === total) throw Error("Smart-object ROI was not strictly clipped.");
+        if (doc.activeLayer.kind !== LayerKind.SMARTOBJECT || doc.layers.length !== layerCount || doc.channels.length !== channelCount) throw Error("Smart-object state was not preserved.");
+        record("Registered menu event: smart object + successful ROI detection strictly clipped; no temporary layer/channel leaks.");
     } catch (error) {
         record("FAIL: " + error.toString() + " / line " + error.line);
         throw error;

@@ -52,6 +52,10 @@
 
 ## 源码构建
 
+2026-09-12 维护优化增加 `{app}/bin/fr-sam-legacy-launcher.exe`，新桥接脚本必须与此启动器一起部署。源码暂存构建已覆盖该文件，现有 GitHub 0.9.3 包未原地更新；下次公开发布需要先递增版本。
+
+本机旧动作还引用了 Program Files 下开发期遗留的 `SAM31 Image Processor Bridge.jsx`。仅升级用户目录的正式桥不能保证这些旧动作迁移。维护时须核实实际调用文件，备份后通过正常管理员授权更新其兼容副本，保留 `sam31ImageProcessorBridge` 事件 ID。仓库维护脚本 `installer/tools/Deploy-BatchBridgeUpdate.ps1` 针对已核对的本机 2026 安装；默认检查全部三个入口写权限，`-UserScriptsOnly` 不会修复 Program Files 旧入口。勿修改 ACL 或把维护脚本录入动作。
+
 1. 运行 installer/Prepare-PublicRelease.ps1，校验正式 ID、官方 SAM 提交、依赖锁和发布扫描，构建 Release Addon 并生成 installer/stage。
 2. 使用 Adobe UXP Developer Tool 校验并打包 installer/stage/plugin/manifest.json；产物名为 com.fangrui.sam-selection_PS.ccx。
 3. 使用 Inno Setup 6 编译 installer/FRSAMTextSelection.iss。

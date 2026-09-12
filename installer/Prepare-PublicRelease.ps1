@@ -130,6 +130,8 @@ if (-not $SkipNativeBuild) {
     if ($LASTEXITCODE -ne 0) { throw 'Release native build failed.' }
     & (Join-Path $releaseBuild 'Release\sam31_runtime_config_tests.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Release runtime configuration tests failed.' }
+    & (Join-Path $releaseBuild 'Release\fr_sam_launcher_tests.exe') (Join-Path $releaseBuild 'Release\fr_sam_launcher_child.exe')
+    if ($LASTEXITCODE -ne 0) { throw 'Release silent launcher tests failed.' }
 }
 
 foreach ($name in @('index.html', 'index.js', 'styles.css')) {
@@ -139,6 +141,11 @@ foreach ($directory in @('lib', 'icons')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot "plugin\$directory") -Destination $pluginRoot -Recurse -Force
 }
 $addonTarget = Join-Path $pluginRoot 'win\x64'
+New-Item -ItemType Directory -Path (Join-Path $payloadRoot 'bin') -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $releaseBuild 'Release\fr-sam-legacy-launcher.exe') -Destination (Join-Path $payloadRoot 'bin') -Force
+if (-not (Test-Path -LiteralPath (Join-Path $payloadRoot 'bin\fr-sam-legacy-launcher.exe') -PathType Leaf)) {
+    throw 'Silent legacy launcher is missing from the backend payload.'
+}
 New-Item -ItemType Directory -Path $addonTarget -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $releaseBuild 'Release\sam31-supervisor.uxpaddon') -Destination $addonTarget -Force
 

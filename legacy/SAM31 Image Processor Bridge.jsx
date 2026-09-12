@@ -203,6 +203,7 @@
         var root = new Folder(rootText);
         if (!root.exists) fail("FR SAM 安装目录不存在。");
         return {
+            launcher: relativeInstalledPath(root.fsName, "bin/fr-sam-legacy-launcher.exe", "静默启动器（请更新后端安装包）", false),
             python: relativeInstalledPath(root.fsName, values.python, "Python", false),
             backend: relativeInstalledPath(root.fsName, values.backend, "backend", true),
             model: values.schemaVersion === "2" ?
@@ -212,10 +213,22 @@
         };
     }
 
-    function q(value) {
-        value = String(value);
-        if (/[\r\n\"%!^&|<>]/.test(value)) fail("本地命令路径包含不支持的字符。");
-        return '"' + value + '"';
+    function runLocalBridge(runtime, folder) {
+        var ready = new File(folder.fsName + "/launcher.ready");
+        var claimed = new File(folder.fsName + "/launcher.claimed");
+        var done = new File(folder.fsName + "/launcher.done");
+        writeText(ready, "1");
+        // Execute the windowless binary directly, with no outer command shell.
+        if (!new File(runtime.launcher).execute()) fail("无法启动本地静默桥接程序，请修复后端安装。");
+        var started = new Date().getTime();
+        while (!done.exists) {
+            var elapsed = new Date().getTime() - started;
+            if (!claimed.exists && elapsed > 30000) fail("本地静默桥接程序未接收请求，请检查后端安装。");
+            if (elapsed > 25 * 60 * 1000 + 10000) fail("本地桥接等待超时。");
+            $.sleep(50);
+        }
+        var result = readText(done).replace(/^\uFEFF/, "");
+        if (result !== "ok") fail("本地桥接技术故障：" + result);
     }
 
     function hasSelection(doc) {
@@ -271,11 +284,37 @@
         }
     }
 
+    function canExportBackgroundDirectly(doc, hasRoi) {
+        try {
+            if (hasRoi || doc.mode !== DocumentMode.RGB || doc.bitsPerChannel !== BitsPerChannelType.EIGHT ||
+                doc.layers.length !== 1 || doc.channels.length !== 3 || doc.activeChannels.length !== 3) return false;
+            var layer = doc.activeLayer;
+            if (!layer.isBackgroundLayer || layer.kind !== LayerKind.NORMAL || !layer.visible ||
+                layer.opacity !== 100 || layer.fillOpacity !== 100 || layer.blendMode !== BlendMode.NORMAL || layer.grouped) return false;
+            var ref = new ActionReference();
+            ref.putEnumerated(charIDToTypeID("Lyr "), charIDToTypeID("Ordn"), charIDToTypeID("Trgt"));
+            var descriptor = executeActionGet(ref);
+            if (descriptor.hasKey(stringIDToTypeID("layerEffects"))) return false;
+            var flags = ["hasUserMask", "hasVectorMask", "hasFilterMask"];
+            for (var i = 0; i < flags.length; i += 1) {
+                var key = stringIDToTypeID(flags[i]);
+                if (descriptor.hasKey(key) && descriptor.getBoolean(key)) return false;
+            }
+            return true;
+        } catch (ignored) { return false; }
+    }
+
     function saveInputPlanes(doc, inputFile, roiFile) {
         var original = app.activeDocument;
         var exportDoc = null;
         var hasRoi = hasSelection(doc);
         try {
+            if (canExportBackgroundDirectly(doc, hasRoi)) {
+                var directOptions = new PNGSaveOptions();
+                directOptions.interlaced = false;
+                doc.saveAs(inputFile, directOptions, true, Extension.LOWERCASE);
+                return false;
+            }
             exportDoc = duplicateWithSelection(doc, hasRoi);
             app.activeDocument = exportDoc;
 
@@ -329,12 +368,22 @@
 
     function placeMaskAsHiddenLayer(doc, maskFile) {
         var selectionLayer = null;
+        var hiddenGroup = null;
         try {
             app.activeDocument = doc;
             // Place centers a full-canvas PNG on the current selection when one
             // exists. ROI is already encoded in the returned mask, so remove
             // fsel before placing it to preserve document pixel coordinates.
             doc.selection.deselect();
+            // Place next to a child of an already-hidden group. Hiding the
+            // imported layer after Place is too late to prevent its first draw.
+            hiddenGroup = doc.layerSets.add();
+            hiddenGroup.name = "FR SAM temporary container";
+            hiddenGroup.visible = false;
+            var anchor = hiddenGroup.artLayers.add();
+            anchor.name = "FR SAM placement anchor";
+            anchor.visible = false;
+            doc.activeLayer = anchor;
             var place = new ActionDescriptor();
             place.putPath(charIDToTypeID("null"), maskFile);
             place.putEnumerated(
@@ -344,6 +393,10 @@
             );
             executeAction(charIDToTypeID("Plc "), place, DialogModes.NO);
             selectionLayer = doc.activeLayer;
+            if (selectionLayer.visible) selectionLayer.visible = false;
+            if (selectionLayer.parent.id !== hiddenGroup.id || hiddenGroup.visible) {
+                fail("无法在隐藏容器中导入掩码，已保留原选区。");
+            }
             selectionLayer.name = "FR SAM temporary mask";
             // Place can also center on the visible viewport and resize according
             // to host preferences. Align the smart object's entire source canvas,
@@ -360,7 +413,7 @@
                 Math.abs(frame.width - width) > 0.05 || Math.abs(frame.height - height) > 0.05) {
                 fail("掩码坐标校验失败，已保留原选区。");
             }
-            selectionLayer.visible = false;
+            if (selectionLayer.visible) selectionLayer.visible = false;
 
             var setDescriptor = new ActionDescriptor();
             var destination = new ActionReference();
@@ -376,6 +429,7 @@
             executeAction(charIDToTypeID("setd"), setDescriptor, DialogModes.NO);
         } finally {
             if (selectionLayer) selectionLayer.remove();
+            if (hiddenGroup) hiddenGroup.remove();
         }
     }
 
@@ -479,22 +533,16 @@
         };
         writeText(requestFile, jsonStringify(request));
 
-        var bridgeScript = runtime.backend + "/sam31_backend/legacy_bridge.py";
-        var commandLine = q(runtime.python) + " " + q(bridgeScript) +
-            " --session-root " + q(SESSION_ROOT.fsName) +
-            " --request-file " + q(requestFile.fsName) +
-            " --response-file " + q(responseFile.fsName) +
-            " --model-checkpoint " + q(runtime.model) +
-            " --official-sam3-root " + q(runtime.officialSam3);
-        var command = 'cmd.exe /d /s /c "' + commandLine + '"';
-        var exitCode = app.system(command);
-        if (exitCode !== 0 || !responseFile.exists) {
-            fail("本地后端技术故障，自动重试后仍失败（退出码 " + exitCode + "）。");
-        }
+        runLocalBridge(runtime, requestFolder);
+        if (!responseFile.exists) fail("本地后端未返回响应。");
         var response = jsonParse(readText(responseFile));
         applyInferenceResponse(doc, response, request, maskFile);
     } finally {
         app.activeDocument = doc;
-        removeTree(requestFolder);
+        // Do not delete input while a claimed worker may still be using it.
+        var doneFile = new File(requestFolder.fsName + "/launcher.done");
+        var claimFile = new File(requestFolder.fsName + "/launcher.claimed");
+        if (!doneFile.exists) writeText(new File(requestFolder.fsName + "/launcher.cancel"), "1");
+        if (doneFile.exists || !claimFile.exists) removeTree(requestFolder);
     }
 }());

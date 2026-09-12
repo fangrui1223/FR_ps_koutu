@@ -26,6 +26,7 @@ CloseApplications=no
 RestartApplications=no
 
 [Files]
+Source: "stage\payload\bin\fr-sam-legacy-launcher.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "stage\payload\backend\*"; DestDir: "{app}\backend"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "stage\payload\vendor\sam3\*"; DestDir: "{app}\vendor\sam3"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "stage\payload\licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion recursesubdirs createallsubdirs
