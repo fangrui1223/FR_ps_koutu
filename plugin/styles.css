@@ -27,6 +27,7 @@ main {
 .panel-content {
   display: block;
   padding-right: 4px;
+  padding-bottom: 20px;
   overflow-x: hidden;
   overflow-y: visible;
 }

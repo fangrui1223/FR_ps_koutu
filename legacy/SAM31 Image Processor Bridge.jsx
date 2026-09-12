@@ -400,6 +400,29 @@
         }
     }
 
+    function applyInferenceResponse(doc, response, request, maskFile) {
+        if (!response || (response.schemaVersion != null && response.schemaVersion !== 1) || response.requestId !== request.requestId) {
+            fail("本地后端返回了不匹配的响应。");
+        }
+        if (response.status === "error" && response.error && response.error.code === "NO_OBJECT") {
+            // Whole canvas, deliberately not the old ROI or layer transparency.
+            // Explicit pixel units also work when the user's ruler units differ.
+            var w = UnitValue(doc.width.as("px"), "px");
+            var h = UnitValue(doc.height.as("px"), "px");
+            var zero = UnitValue(0, "px");
+            doc.selection.select([[zero, zero], [w, zero], [w, h], [zero, h]], SelectionType.REPLACE, 0, false);
+            return;
+        }
+        if (response.status !== "ok") {
+            fail(response.error && response.error.message ? response.error.message : "本地推理失败。");
+        }
+        if (!response.mask || response.mask.file !== request.output.file ||
+            response.mask.encoding !== "png-alpha8" || !maskFile.exists) {
+            fail("本地后端返回了不匹配的响应。");
+        }
+        loadTransparencySelection(doc, maskFile);
+    }
+
     function splitPrompts(value) {
         var raw = value.split(",");
         var prompts = [];
@@ -469,14 +492,7 @@
             fail("本地后端技术故障，自动重试后仍失败（退出码 " + exitCode + "）。");
         }
         var response = jsonParse(readText(responseFile));
-        if (response.status !== "ok") {
-            fail(response.error && response.error.message ? response.error.message : "本地推理失败。");
-        }
-        if (response.requestId !== requestId || !response.mask || response.mask.file !== request.output.file ||
-            response.mask.encoding !== "png-alpha8" || !maskFile.exists) {
-            fail("本地后端返回了不匹配的响应。");
-        }
-        loadTransparencySelection(doc, maskFile);
+        applyInferenceResponse(doc, response, request, maskFile);
     } finally {
         app.activeDocument = doc;
         removeTree(requestFolder);

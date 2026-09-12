@@ -61,8 +61,17 @@ async function infer(sessionRootNativePath, request) {
     throw invalid;
   }
   if (response && response.status === "error") {
+    // V1 service errors omit schemaVersion; accept an absent field, never an
+    // explicitly incompatible one. Correlate the ID before trusting NO_OBJECT.
+    if ((response.schemaVersion != null && response.schemaVersion !== 1) || response.requestId !== request.requestId ||
+        !response.error || typeof response.error.code !== "string") {
+      const invalid = new Error("本机后端返回了不匹配或无效的错误响应。");
+      invalid.code = "BACKEND_PROTOCOL_ERROR";
+      throw invalid;
+    }
     const serviceError = new Error(response.error && response.error.message ? response.error.message : "本机后端执行失败。");
     serviceError.code = response.error && response.error.code;
+    serviceError.requestId = response.requestId;
     serviceError.retryable = Boolean(response.error && response.error.retryable);
     throw serviceError;
   }

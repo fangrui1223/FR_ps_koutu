@@ -5,7 +5,7 @@ param(
     [string]$HybridSdkRoot,
 
     [string]$PluginId = 'com.fangrui.sam-selection',
-    [string]$Version = '0.9.2',
+    [string]$Version = '0.9.3',
     [switch]$SkipNativeBuild
 )
 

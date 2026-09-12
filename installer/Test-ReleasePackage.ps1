@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$CcxPath,
-    [string]$ExpectedVersion = '0.9.2',
+    [string]$ExpectedVersion = '0.9.3',
     [string]$StagedPluginRoot,
     [string]$InstalledPluginRoot
 )

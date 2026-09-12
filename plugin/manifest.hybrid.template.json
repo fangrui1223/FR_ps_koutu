@@ -3,7 +3,7 @@
   "manifestVersion": 6,
   "id": "com.fangrui.sam-selection",
   "name": "FR SAM 文本选区",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "main": "index.html",
   "host": {
     "app": "PS",
@@ -22,9 +22,9 @@
       "type": "panel",
       "id": "sam31SelectionPanel",
       "label": {"default": "FR SAM 文本选区"},
-      "minimumSize": {"width": 280, "height": 320},
-      "preferredDockedSize": {"width": 320, "height": 430},
-      "preferredFloatingSize": {"width": 360, "height": 460}
+      "minimumSize": {"width": 280, "height": 420},
+      "preferredDockedSize": {"width": 320, "height": 580},
+      "preferredFloatingSize": {"width": 360, "height": 600}
     },
     {
       "type": "command",

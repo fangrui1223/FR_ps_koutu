@@ -62,3 +62,32 @@ test("legacy build markers cannot become ExtendScript at-sign directives", () =>
   assert.match(jsx, /var ALLOW_DEV_FALLBACK = false;/);
   assert.match(jsx, /if \(exportedLayer\.grouped\) exportedLayer\.grouped = false;/);
 });
+
+test("full-canvas fallback replaces ROI with an unfeathered rectangle without Imaging", async () => {
+  let calls = 0;
+  const io = loadIo({ constants: { SelectionType: { REPLACE: "replace" } } });
+  const doc = { width: 8000, height: 12000, selection: {
+    bounds: { left: 10, top: 20, right: 30, bottom: 40 },
+    selectRectangle: async (bounds, mode, feather, antialias) => {
+      calls++;
+      assert.deepEqual(JSON.parse(JSON.stringify(bounds)), { left: 0, top: 0, right: 8000, bottom: 12000 });
+      assert.equal(mode, "replace"); assert.equal(feather, 0); assert.equal(antialias, false);
+    }
+  } };
+  await io.commitFullCanvasSelection(doc, () => {});
+  await assert.rejects(io.commitFullCanvasSelection(doc, () => { throw Error("cancelled"); }), /cancelled/);
+  assert.equal(calls, 1);
+});
+
+test("public panel sizes match and retain scroll plus bottom breathing room", () => {
+  const manifests = ["manifest.json", "manifest.hybrid.template.json"].map(name =>
+    JSON.parse(fs.readFileSync(path.resolve(__dirname, "..", name), "utf8")));
+  const panels = manifests.map(m => m.entryPoints.find(e => e.type === "panel"));
+  for (const key of ["minimumSize", "preferredDockedSize", "preferredFloatingSize"]) assert.deepEqual(panels[0][key], panels[1][key]);
+  assert.ok(panels[0].minimumSize.height >= 420);
+  assert.ok(panels[0].preferredDockedSize.height >= 580);
+  assert.ok(panels[0].preferredFloatingSize.height >= 600);
+  const css = fs.readFileSync(path.resolve(__dirname, "../styles.css"), "utf8");
+  assert.match(css, /main\s*\{[^}]*overflow-y:\s*auto/);
+  assert.match(css, /\.panel-content\s*\{[^}]*padding-bottom:\s*20px/);
+});

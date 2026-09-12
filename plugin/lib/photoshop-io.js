@@ -225,6 +225,14 @@ async function commitSelectionFromPng(doc, maskFile, assertNotCancelled) {
   }
 }
 
+async function commitFullCanvasSelection(doc, assertNotCancelled) {
+  const bounds = documentBounds(doc);
+  if (typeof assertNotCancelled === "function") assertNotCancelled();
+  // Explicit bounds avoid Select All's active-artboard behavior. No pixel buffer
+  // or temporary layer is needed, even for a 96 MP document. Ignore the old ROI.
+  await doc.selection.selectRectangle(bounds, photoshop.constants.SelectionType.REPLACE, 0, false);
+}
+
 async function commitSelection(doc, mask, width, height, bounds, assertNotCancelled) {
   if (mask && mask.encoding === "png-alpha8") {
     await commitSelectionFromPng(doc, mask.file, assertNotCancelled);
@@ -271,6 +279,7 @@ module.exports = {
   captureActiveLayer,
   captureDocument,
   captureSelection,
+  commitFullCanvasSelection,
   commitSelection,
   commitSelectionFromPng,
   documentBounds

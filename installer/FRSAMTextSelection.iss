@@ -1,5 +1,5 @@
 #define AppName "FR SAM Text Selection Backend"
-#define AppVersion "0.9.2"
+#define AppVersion "0.9.3"
 #define Publisher "FR"
 
 [Setup]

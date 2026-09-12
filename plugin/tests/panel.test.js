@@ -19,7 +19,8 @@ function harness(infer = async () => ({ selected: { prompt: "pants", score: 0.9 
   const localRequire = createRequire(filename);
   let setup;
   let calls = 0;
-  const photoshop = { core: { executeAsModal: async (fn) => fn() }, action: { recordAction: async () => {} } };
+  const recordings = [];
+  const photoshop = { core: { executeAsModal: async (fn) => fn() }, action: { recordAction: async (...args) => recordings.push(args) } };
   const context = { require(name) {
     if (name === "photoshop") return photoshop;
     if (name === "uxp") return { entrypoints: { setup(value) { setup = value; } } };
@@ -30,7 +31,7 @@ function harness(infer = async () => ({ selected: { prompt: "pants", score: 0.9 
     return localRequire(name);
   } };
   vm.runInNewContext(fs.readFileSync(filename, "utf8"), context, { filename });
-  return { context, root, setup, get calls() { return calls; } };
+  return { context, root, setup, recordings, get calls() { return calls; } };
 }
 
 test("invalid panel prompt is visible and restores controls", async () => {
@@ -72,4 +73,20 @@ test("invalid recorded action is visible and does not leave panel busy", async (
   assert.match(h.root.querySelector("#status").textContent, /不支持/);
   await h.context.executeFromPanel(false);
   assert.equal(h.calls, 1);
+});
+
+test("fallback is visibly identified and can still be recorded without a fake score", async () => {
+  const h = harness(async () => ({ fallback: { code: "NO_OBJECT", mode: "selectAll" } }));
+  h.setup.panels.sam31SelectionPanel.create(h.root);
+  await h.context.executeFromPanel(true);
+  assert.match(h.root.querySelector("#status").textContent, /全选整个画布/);
+  assert.doesNotMatch(h.root.querySelector("#status").textContent, /NaN|undefined|0\.000/);
+  assert.equal(h.recordings.length, 1);
+  assert.equal(h.recordings[0][1].prompt, "pants");
+  assert.equal(h.root.querySelector("#showDetail").hidden, true);
+  assert.equal(h.root.querySelector("#cancel").hidden, true);
+  assert.equal(h.root.querySelector("#run").disabled, false);
+  const info = await h.context.frSamSelectionActionHandler(null, { prompt: "airplane", threshold: 0.95 });
+  assert.equal(info.prompt, "airplane");
+  assert.match(h.root.querySelector("#status").textContent, /动作完成.*全选整个画布/);
 });

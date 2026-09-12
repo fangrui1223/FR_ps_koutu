@@ -12,6 +12,13 @@ const ACTION_NAME = "FR SAM 文本选区";
 let panelRoot = null;
 let busy = false;
 
+function completionMessage(response, prefix) {
+  if (response.fallback && response.fallback.mode === "selectAll") {
+    return `${prefix}：未找到满足阈值的对象，已全选整个画布，可继续后续操作。`;
+  }
+  return `${prefix}：${response.selected.prompt} / ${Number(response.selected.score).toFixed(3)}`;
+}
+
 function setStatus(message, isError) {
   const element = panelRoot && panelRoot.querySelector("#status");
   if (!element) return;
@@ -91,7 +98,7 @@ async function executeFromPanel(record, suppliedInfo) {
       await photoshop.action.recordAction({ name: ACTION_NAME, methodName: ACTION_METHOD }, info);
     }
     const suffix = record ? "，并已请求录入动作" : "";
-    setStatus(`完成${suffix}：${response.selected.prompt} / ${Number(response.selected.score).toFixed(3)}`, false);
+    setStatus(completionMessage(response, `完成${suffix}`), false);
     return response;
   } catch (error) {
     const cancelled = error && error.code === "CANCELLED";
@@ -112,7 +119,7 @@ globalThis.frSamSelectionActionHandler = async function frSamSelectionActionHand
     if (executionContext) executionContext.onCancel = () => { cancelActive().catch(() => {}); };
     setStatus(`正在重放：${info.prompt} / ${info.threshold.toFixed(2)}`, false);
     const response = await executeSelection(executionContext, info, false);
-    setStatus(`动作完成：${response.selected.prompt} / ${Number(response.selected.score).toFixed(3)}`, false);
+    setStatus(completionMessage(response, "动作完成"), false);
     return info;
   } catch (error) {
     setStatus(`动作失败：${error && error.message ? error.message : String(error)}`, true);

@@ -26,6 +26,11 @@ function createFixture(overrides = {}) {
     buildInferRequest() {},
     photoshopIo: {
       async captureDocument() { events.push("capture"); return { doc: { id: 7 } }; },
+      async commitFullCanvasSelection(doc, assertNotCancelled) {
+        assertNotCancelled();
+        assert.equal(doc.id, 7);
+        events.push("selectAll");
+      },
       async commitSelection(...args) {
         events.push("commit");
         assert.strictEqual(args[1], mask);
@@ -185,4 +190,74 @@ test("changed document guard runs inside commit modal and prevents write", async
   await assert.rejects(createCoordinator(fixture.dependencies).runSelection({}), /changed/);
   assert.ok(!fixture.events.includes("commit"));
   assert.ok(fixture.events.includes("cleanup"));
+});
+
+function noObjectFixture() {
+  const fixture = createFixture();
+  fixture.dependencies.backend.infer = async () => {
+    fixture.events.push("infer");
+    throw Object.assign(new Error("No candidate met the threshold"), { code: "NO_OBJECT", requestId: fixture.request.requestId });
+  };
+  return fixture;
+}
+
+test("NO_OBJECT selects whole canvas without mask I/O and permits the next call", async () => {
+  const f = noObjectFixture();
+  const coordinator = createCoordinator(f.dependencies);
+  for (let i = 0; i < 3; i++) {
+    const result = await coordinator.runSelection({ prompt: "airplane", threshold: 0.95 });
+    assert.deepEqual(result.fallback, { code: "NO_OBJECT", mode: "selectAll" });
+    assert.equal(result.selected, undefined);
+  }
+  assert.deepEqual(f.events, Array(3).fill(["capture", "prepare", "infer", "selectAll", "cleanup"]).flat());
+});
+
+test("NO_OBJECT uses commit modal and document guard, independent of original ROI", async () => {
+  const f = noObjectFixture();
+  f.dependencies.photoshopIo.captureDocument = async () => ({ doc: { id: 7 }, roi: { bounds: { left: 1, right: 2 } } });
+  f.dependencies.photoshopIo.assertCaptureUnchanged = () => f.events.push("guard");
+  await createCoordinator(f.dependencies).runSelection({}, {
+    executeCommit: async (commit) => { f.events.push("modal"); await commit(); }
+  });
+  assert.deepEqual(f.events, ["prepare", "infer", "modal", "guard", "selectAll", "cleanup"]);
+});
+
+test("cancel wins over a late NO_OBJECT response", async () => {
+  const f = noObjectFixture();
+  await assert.rejects(createCoordinator(f.dependencies).runSelection({}, {
+    isCancelled: () => f.events.includes("infer")
+  }), { code: "CANCELLED" });
+  assert.ok(!f.events.includes("selectAll"));
+});
+
+test("cancel or changed document while awaiting fallback modal prevents all writes", async () => {
+  for (const cancelled of [true, false]) {
+    const f = noObjectFixture();
+    const coordinator = createCoordinator(f.dependencies);
+    if (!cancelled) f.dependencies.photoshopIo.assertCaptureUnchanged = () => { throw Error("changed"); };
+    await assert.rejects(coordinator.runSelection({}, {
+      executeCommit: async (commit) => { if (cancelled) await coordinator.cancelActive(); await commit(); }
+    }), cancelled ? { code: "CANCELLED" } : /changed/);
+    assert.ok(!f.events.includes("selectAll"));
+  }
+});
+
+test("other errors, uncorrelated NO_OBJECT and empty successful masks never select all", async () => {
+  for (const code of ["CUDA_ERROR", "CANCELLED", "EMPTY_EFFECTIVE_ROI", "INVALID_REQUEST", undefined, "NO_OBJECT"]) {
+    const f = createFixture();
+    f.dependencies.backend.infer = async () => { throw Object.assign(Error("NO_OBJECT"), { code }); };
+    await assert.rejects(createCoordinator(f.dependencies).runSelection({}));
+    assert.ok(!f.events.includes("selectAll"));
+  }
+  const f = createFixture();
+  f.dependencies.photoshopIo.commitSelection = async () => { throw Error("没有找到满足阈值的对象。"); };
+  await assert.rejects(createCoordinator(f.dependencies).runSelection({}));
+  assert.ok(!f.events.includes("selectAll"));
+});
+
+test("fallback host failure propagates and still cleans up", async () => {
+  const f = noObjectFixture();
+  f.dependencies.photoshopIo.commitFullCanvasSelection = async () => { throw Error("host failed"); };
+  await assert.rejects(createCoordinator(f.dependencies).runSelection({}), /host failed/);
+  assert.equal(f.events.at(-1), "cleanup");
 });

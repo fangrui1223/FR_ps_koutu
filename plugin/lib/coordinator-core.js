@@ -42,16 +42,33 @@ function createCoordinator(dependencies) {
       run.requestId = prepared.request.requestId;
       throwIfCancelled(run);
       reportStage("infer");
-      const rawResponse = await backend.infer(prepared.nativeRoot, prepared.request);
+      let rawResponse;
+      let selectAllFallback = false;
+      try {
+        rawResponse = await backend.infer(prepared.nativeRoot, prepared.request);
+      } catch (error) {
+        throwIfCancelled(run);
+        if (!error || error.code !== "NO_OBJECT" || error.requestId !== run.requestId) throw error;
+        selectAllFallback = true;
+      }
       throwIfCancelled(run);
-      reportStage("read");
-      const response = validateSuccessResponse(rawResponse, prepared.request);
-      const mask = await sessionIo.readMask(prepared);
+      // A fallback is a host selection policy, not a fabricated model detection.
+      const response = selectAllFallback
+        ? { status: "ok", requestId: run.requestId, fallback: { code: "NO_OBJECT", mode: "selectAll" } }
+        : validateSuccessResponse(rawResponse, prepared.request);
+      let mask;
+      if (!selectAllFallback) {
+        reportStage("read");
+        mask = await sessionIo.readMask(prepared);
+      }
       throwIfCancelled(run);
       reportStage("commit");
       const commit = async () => {
         throwIfCancelled(run);
         if (typeof photoshopIo.assertCaptureUnchanged === "function") photoshopIo.assertCaptureUnchanged(capture);
+        if (selectAllFallback) {
+          return photoshopIo.commitFullCanvasSelection(capture.doc, () => throwIfCancelled(run));
+        }
         return photoshopIo.commitSelection(
           capture.doc,
           mask,
